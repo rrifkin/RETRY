@@ -2,29 +2,30 @@
 
 import pandas as pd
 
-
-def redcap_parser (data_file, data_dictionary):
+def redcap_parser (data_file, dict):
 
 	raw_data = pd.read_csv(data_file)
-	data_dictionary = pd.read_csv(data_dictionary)
-	
-	data_dictionary = data_dictionary[data_dictionary['Form Name'] != 'primary_brain_tumors']
-	data_dictionary = data_dictionary.loc[:,['Variable / Field Name', 'Choices, Calculations, OR Slider Labels']]
-	print(data_dictionary)
+	dict = pd.read_csv(dict)
 
-	data_dictionary = data_dictionary.loc[:,'Choices, Calculations, OR Slider Labels'].str.replace(',' , ':' , regex=False)
-	data_dictionary = data_dictionary.loc[:,'Choices, Calculations, OR Slider Labels'].str.replace('|' , ',' , regex=False)
-
-	print(data_dictionary)
+	# create a dictionary to convert numeric answers to their meanings
+	multchoice_dict = dict[(dict['Field Type'] == 'radio')|(dict['Field Type'] == 'dropdown')|(dict['Field Type'] == 'checkbox') ]
+	multchoice_dict.loc[:,'parsed_dict'] = multchoice_dict.loc[:,'Choices, Calculations, OR Slider Labels'].apply(convert_to_dict)
+	multchoice_dict = multchoice_dict.loc[:,['Variable / Field Name', 'parsed_dict']]
+	print(multchoice_dict)
 	
+	# create a dataframe of just the patient data
+	patient_data = raw_data[raw_data['redcap_repeat_instrument'] != 'eeg_data']
+	patient_data = patient_data.loc[:,'study_id':'glioma_complete']
+	#print(patient_data)
+
+	# create a dataframe of just the EEG data
 	eeg_data = raw_data[raw_data['redcap_repeat_instrument'] == 'eeg_data']
 	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance']
 	eeg_data_2 = eeg_data.loc[:,'eeg_inclusion':'eeg_data_complete']
 	eeg_data = pd.concat([eeg_data_1,eeg_data_2], axis=1)
+	#print(eeg_data)
 	
-	patient_data = raw_data[raw_data['redcap_repeat_instrument'] != 'eeg_data']
-	patient_data = patient_data.loc[:,'study_id':'glioma_complete']
-	
+	return (multchoice_dict, patient_data, eeg_data)
 
 	
 	avg_patient_age = patient_data['age'].mean()
@@ -34,25 +35,11 @@ def redcap_parser (data_file, data_dictionary):
 	
 	sz_by_grade = patient_data.groupby('who')['any_sz'].value_counts()
 
+def convert_to_dict (string):
+	return {pair.split(', ')[0]: pair.split(', ')[1].strip() for pair in string.split(' | ')}
 
 # def retry_stats (file):
-# 	raw_data = pd.read_csv(file)
-# 	num_entries = raw_data['study_id'].nunique()
-# 	print("number of patients = ", num_entries)
 
-# 	eeg_data = raw_data[raw_data['redcap_repeat_instrument'] == 'eeg_data']
-# 	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance']
-# 	eeg_data_2 = eeg_data.loc[:,'eeg_inclusion':'eeg_data_complete']
-# 	eeg_data = pd.concat([eeg_data_1,eeg_data_2], axis=1)
-	
-# 	patient_data = raw_data[raw_data['redcap_repeat_instrument'] != 'eeg_data']
-# 	patient_data = patient_data.loc[:,'study_id':'glioma_complete']
-	
-# 	print("eeg_data")
-# 	print(eeg_data.head())
-	
-# 	print("patient_data")
-# 	print(patient_data.head())
 	
 # 	avg_patient_age = patient_data['age'].mean()
 # 	print("avg_patient_age")
