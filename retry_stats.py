@@ -33,6 +33,10 @@ def redcap_parser (data_file, dict):
 	dict = pd.read_csv(dict)
 
 	# create a dictionary to convert numeric answers to their meanings
+	dict = dict[dict['Form Name'] != 'primary_brain_tumors']
+	dict = dict[dict['Form Name'] != 'noc_tracking']
+	dict = dict[dict['Form Name'] != 'ranotreat']
+
 	multchoice_dict = dict[(dict['Field Type'] == 'radio')|(dict['Field Type'] == 'dropdown')|(dict['Field Type'] == 'checkbox') ]
 	multchoice_dict.loc[:,'parsed_dict'] = multchoice_dict.loc[:,'Choices, Calculations, OR Slider Labels'].apply(convert_to_dict)
 	multchoice_dict = multchoice_dict.loc[:,['Variable / Field Name', 'parsed_dict']]
@@ -56,17 +60,16 @@ def replace_with_dict(df, dict):
 	for index, row in dict.iterrows():
 		column_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
-		# print(replacement_dict)
 		
 		try:
 			if column_name in df.columns:
 				df[column_name] = df[column_name].replace(replacement_dict)
 			else:
-				pass				
-				# print(column_name, " does not exist in the DataFrame.")
+				#pass				
+				print(column_name, " does not exist in the DataFrame.")
 		except KeyError as e:
-			pass
-			# print("KeyError ", e)
+			#pass
+			print("KeyError ", e)
 	return df
 	
 
