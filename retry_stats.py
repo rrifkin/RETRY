@@ -48,8 +48,11 @@ def redcap_parser (data_file, dict_file):
 	
 	# In df containing patient/EEG data, replace meaningless numbers with their meaning using dictionary
 	cleaned1_data = replace_with_dict(raw_data, multchoice_dict)
+	checkbox_dict.to_csv("~/Desktop/checkbox_dict.csv")
 	cleaned_data = replace_with_dict_checkboxes(cleaned1_data, checkbox_dict)
 	cleaned_data.to_csv("~/Desktop/cleaned_data.csv")
+
+
 
 	# create a dataframe of just the patient data
 	patient_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] != 'eeg_data']
@@ -84,6 +87,7 @@ def replace_with_dict(df, multchoice_dict):
 	return df
 
 def replace_with_dict_checkboxes(df, checkbox_dict):
+	new_df = df
 	for index, row in checkbox_dict.iterrows():
 		var_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
@@ -96,14 +100,9 @@ def replace_with_dict_checkboxes(df, checkbox_dict):
 				this_meaning = replacement_dict[this_number]
 				new_name = this_name + "___" + this_meaning
 				print(new_name)
-				df.rename(columns={col:new_name}, inplace=True)
-			else:
-				print("OK")
-				# try:
-				# 	df.rename(columns={col:new_name}, inplace=True)
-				# except KeyError as e:
-				# 	print("KeyError ", e)
-	return df
+				new_df.rename(columns={col:new_name}, inplace=False)
+
+	return new_df
 	
 
 if __name__ == "__main__":
