@@ -9,23 +9,24 @@ def retry_stats (data_file, dict_file):
 	patient_data.to_csv("~/Desktop/patient_data.csv")
 	
 	# avg_patient_age = patient_data['age'].mean()
-	#print("avg_patient_age")
-	#print(avg_patient_age)
+	# print("avg_patient_age")
+	# print(avg_patient_age)
 	
 	# age_by_grade = clean_patient_data.groupby('who')['age'].mean()
-	#print(age_by_grade)
+	# print(age_by_grade)
+
+
+	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts()
+	print(preop_sz_by_grade)
 	
-	# late_sz_by_grade = patient_data.groupby('who')['any_sz'].value_counts()
-	# print(late_sz_by_grade)
+	late_sz_by_grade = patient_data.groupby('who')['any_sz'].value_counts()
+	print(late_sz_by_grade)
 	
-	# preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts()
-	# print(preop_sz_by_grade)
+	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts()
+	print(preop_sz_by_idh)
 	
-	# preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts()
-	# print(preop_sz_by_idh)
-	
-	# idh_by_grade = patient_data.groupby('who')['idh'].value_counts()
-	# print (idh_by_grade)
+	idh_by_grade = patient_data.groupby('who')['idh'].value_counts()
+	print (idh_by_grade)
 
 
 def redcap_parser (data_file, dict_file):
