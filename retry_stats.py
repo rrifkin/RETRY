@@ -1,20 +1,24 @@
 #! /usr/bin/env python
 
 import pandas as pd
+import warnings
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning)
 
 def retry_stats (data_file, dict_file):
 	
 	multchoice_dict, patient_data, eeg_data = redcap_parser(data_file, dict_file)
 
-	patient_data.to_csv("~/Desktop/patient_data.csv")
-	
-	# avg_patient_age = patient_data['age'].mean()
-	# print("avg_patient_age")
-	# print(avg_patient_age)
-	
-	# age_by_grade = clean_patient_data.groupby('who')['age'].mean()
-	# print(age_by_grade)
+	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig")
+	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig")
 
+	avg_patient_age = patient_data['age'].mean()
+	print("avg_patient_age")
+	print(avg_patient_age)
+	
+	age_by_grade = patient_data.groupby('who')['age'].mean()
+	print("age_by_grade")
+	print(age_by_grade)
 
 	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts()
 	print(preop_sz_by_grade)
@@ -30,15 +34,10 @@ def retry_stats (data_file, dict_file):
 
 
 def redcap_parser (data_file, dict_file):
-	
+
 	# Import CSV files as DataFrames
 	raw_data = pd.read_csv(data_file, dtype=str)	# Raw patient and EEG data exported as CSV from RedCap
 	data_dict = pd.read_csv(dict_file)				# Data Dictionary exported as CSV file from RedCap
-
-	# Remove instruments not included in this dataset from Data Dictionary df (reduces number of error messages)
-	# data_dict = data_dict[data_dict['Form Name'] != 'primary_brain_tumors']
-	# data_dict = data_dict[data_dict['Form Name'] != 'noc_tracking']
-	# data_dict = data_dict[data_dict['Form Name'] != 'ranotreat']
 
 	# Create separate dataframes of radio/dropdown and checkbox Data Dictionary entries
 	multchoice_dict = data_dict[(data_dict['Field Type'] == 'radio')|(data_dict['Field Type'] == 'dropdown')]
@@ -50,13 +49,11 @@ def redcap_parser (data_file, dict_file):
 	
 	# In df containing patient/EEG data, replace meaningless numbers with their meaning using dictionary
 	multchoice_cleaned_data = replace_with_dict(raw_data, multchoice_dict)
-	# checkbox_dict.to_csv("~/Desktop/checkbox_dict.csv")
 	cleaned_data = replace_with_dict_checkboxes(multchoice_cleaned_data, checkbox_dict)
-	# cleaned_data.to_csv("~/Desktop/cleaned_data.csv")
 
 	# create a dataframe of just the patient data
 	patient_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] != 'eeg_data']
-	# patient_data = patient_data.loc[:,'study_id':'glioma_complete']
+	patient_data = patient_data.loc[:,'study_id':'glioma_complete']
 
 	# create a dataframe of just the EEG data
 	eeg_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] == 'eeg_data']
@@ -74,32 +71,25 @@ def replace_with_dict(raw_data, multchoice_dict):
 		column_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
 		
-		# try:
 		if column_name in raw_data.columns:
 			raw_data[column_name] = raw_data[column_name].replace(replacement_dict)
 
 	return raw_data
 
-def replace_with_dict_checkboxes(df, checkbox_dict):
-	new_df = df.copy()
+def replace_with_dict_checkboxes(raw_data, checkbox_dict):
 	for index, row in checkbox_dict.iterrows():
-		var_name = row['Variable / Field Name']
+		column_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
-		
-		for (col, _) in df.items():
-			if var_name in col:
-				[this_name, this_number] = df[col].name.split("___")
-				#print(this_number)
-				#print(this_name)
-				this_meaning = replacement_dict[this_number]
-				new_name = this_name + "___" + this_meaning
-				#print(col)
-				#print(new_name)
-				new_df.loc[:,new_name] = df.loc[:,col]
 
-	# new_df.to_csv("~/Desktop/new_df.csv")
-	return new_df
-	
+		if column_name in raw_data.columns:
+			output = []
+			for i, this_item in raw_data[column_name].items():
+				this_string =str(this_item)
+				result = ",".join(replacement_dict.get(item.strip(), item.strip()) for item in this_string.split(","))
+				output.append(result)
+			raw_data[column_name] = output
+
+	return (raw_data)
 
 if __name__ == "__main__":
 	import sys
