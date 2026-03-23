@@ -8,36 +8,42 @@ warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning
 def retry_stats (data_file, dict_file):
 	
 	multchoice_dict, patient_data, eeg_data = redcap_parser(data_file, dict_file)
+	patient_data = find_hyperexcitability (patient_data, eeg_data)
+
+	patient_data["age"] = patient_data["age"].astype(float)
+	patient_data["study_id"] = patient_data["study_id"].astype(int)
+	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
+
+	avg_patient_age = patient_data['age'].mean()
+	print("avg_patient_age =", avg_patient_age, "\n")
+	
+	age_by_grade = patient_data.groupby('who')['age'].mean()
+	print("age_by_grade")
+	print(age_by_grade, "\n")
+
+	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts()
+	print(preop_sz_by_grade, "\n")
+	
+	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts()
+	print(late_sz_by_grade, "\n")
+	
+	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts()
+	print(preop_sz_by_idh, "\n")
+	
+	idh_by_grade = patient_data.groupby('who')['idh'].value_counts()
+	print (idh_by_grade, "\n")
+
+	late_sz_by_hyperexcitability = patient_data.groupby('hyperexcitability')['late_sz'].value_counts()
+	print(late_sz_by_hyperexcitability, "\n")
 
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig")
 
-	avg_patient_age = patient_data['age'].mean()
-	print("avg_patient_age")
-	print(avg_patient_age)
-	
-	age_by_grade = patient_data.groupby('who')['age'].mean()
-	print("age_by_grade")
-	print(age_by_grade)
-
-	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts()
-	print(preop_sz_by_grade)
-	
-	late_sz_by_grade = patient_data.groupby('who')['any_sz'].value_counts()
-	print(late_sz_by_grade)
-	
-	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts()
-	print(preop_sz_by_idh)
-	
-	idh_by_grade = patient_data.groupby('who')['idh'].value_counts()
-	print (idh_by_grade)
-
-
 def redcap_parser (data_file, dict_file):
 
 	# Import CSV files as DataFrames
-	raw_data = pd.read_csv(data_file, dtype=str)	# Raw patient and EEG data exported as CSV from RedCap
-	data_dict = pd.read_csv(dict_file)				# Data Dictionary exported as CSV file from RedCap
+	raw_data = pd.read_csv(data_file, dtype=str)				# Raw patient and EEG data exported as CSV from RedCap
+	data_dict = pd.read_csv(dict_file, dtype=str)				# Data Dictionary exported as CSV file from RedCap
 
 	# Create separate dataframes of radio/dropdown and checkbox Data Dictionary entries
 	multchoice_dict = data_dict[(data_dict['Field Type'] == 'radio')|(data_dict['Field Type'] == 'dropdown')]
@@ -66,7 +72,9 @@ def redcap_parser (data_file, dict_file):
 def convert_to_dict (string):
 	return {pair.split(', ')[0]: pair.split(', ')[1].strip() for pair in string.split(' | ')}
 
+# replaces radio / dropdown meaningless numbers with their meaning using a dictionary
 def replace_with_dict(raw_data, multchoice_dict):
+	raw_data = raw_data.copy()
 	for index, row in multchoice_dict.iterrows():
 		column_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
@@ -74,9 +82,14 @@ def replace_with_dict(raw_data, multchoice_dict):
 		if column_name in raw_data.columns:
 			raw_data[column_name] = raw_data[column_name].replace(replacement_dict)
 
+	#renaming this variable because it's really confusing
+	raw_data.rename(columns={'any_sz': 'late_sz'}, inplace=True)
+
 	return raw_data
 
+# replaces checkbox meaningless numbers with their meaning using a dictionary
 def replace_with_dict_checkboxes(raw_data, checkbox_dict):
+	raw_data = raw_data.copy()
 	for index, row in checkbox_dict.iterrows():
 		column_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
@@ -90,6 +103,36 @@ def replace_with_dict_checkboxes(raw_data, checkbox_dict):
 			raw_data[column_name] = output
 
 	return (raw_data)
+
+def find_hyperexcitability (patient_data, eeg_data):
+	patient_data = patient_data.copy()
+	eeg_data = eeg_data.copy()
+
+	gpd = eeg_data.loc[eeg_data['gpd_yn'] == "1", 'study_id'].drop_duplicates()
+	lpd = eeg_data.loc[eeg_data['lpd_yn'] == "1", 'study_id'].drop_duplicates()
+	bipd = eeg_data.loc[eeg_data['bipd_yn'] == "1", 'study_id'].drop_duplicates()
+	lrda = eeg_data.loc[eeg_data['lrda_yn'] == "1", 'study_id'].drop_duplicates()
+	sz = eeg_data.loc[eeg_data['sz_yn'] == "1", 'study_id'].drop_duplicates()
+	ied = eeg_data.loc[eeg_data['epi_disch_yn'] == "1", 'study_id'].drop_duplicates()
+
+	hyperexcitable = pd.concat([gpd, lpd, bipd, lrda, sz, ied], ignore_index=True)
+
+	patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable)
+
+	return (patient_data)
+
+# determines if patient ever had a clinical seizure
+def find_ever_sz (patient_data):
+	patient_data = patient_data.copy()
+
+	ever_sz = patient_data.loc[patient_data['preop_sz'] == "Yes" | patient_data['late_sz'] == "Yes"]
+	print(ever_sz)
+
+	# print(hyperexcitable)
+
+	# patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable)
+
+	# return (patient_data)
 
 if __name__ == "__main__":
 	import sys
