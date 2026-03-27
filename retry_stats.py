@@ -1,6 +1,9 @@
 #! /usr/bin/env python
 
 import pandas as pd
+from scipy.stats import chi2_contingency
+import statsmodels.api as sm
+import numpy as np
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning)
@@ -9,9 +12,12 @@ def retry_stats (data_file, dict_file):
 	
 	multchoice_dict, patient_data, eeg_data = redcap_parser(data_file, dict_file)
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
+	patient_data = find_ever_sz (patient_data)
 
 	patient_data["age"] = patient_data["age"].astype(float)
 	patient_data["study_id"] = patient_data["study_id"].astype(int)
+	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False})
+	
 	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
 
 	avg_patient_age = patient_data['age'].mean()
@@ -21,23 +27,54 @@ def retry_stats (data_file, dict_file):
 	print("age_by_grade")
 	print(age_by_grade, "\n")
 
-	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts()
+	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts().unstack()
 	print(preop_sz_by_grade, "\n")
 	
-	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts()
+	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts().unstack()
 	print(late_sz_by_grade, "\n")
 	
-	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts()
+	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts().unstack()
 	print(preop_sz_by_idh, "\n")
 	
-	idh_by_grade = patient_data.groupby('who')['idh'].value_counts()
+	idh_by_grade = patient_data.groupby('who')['idh'].value_counts().unstack()
 	print (idh_by_grade, "\n")
 
-	late_sz_by_hyperexcitability = patient_data.groupby('hyperexcitability')['late_sz'].value_counts()
+	late_sz_by_hyperexcitability = patient_data.groupby('hyperexcitability')['late_sz'].value_counts().unstack()
 	print(late_sz_by_hyperexcitability, "\n")
+	chi2, p, dof, expected = chi2_contingency(late_sz_by_hyperexcitability, correction=False)
+	print("chi2 p-value:", p)
+
+	ever_sz_by_hyperexcitability = patient_data.groupby('hyperexcitability')['ever_sz'].value_counts().unstack()
+	print(ever_sz_by_hyperexcitability, "\n")
+	chi2, p, dof, expected = chi2_contingency(ever_sz_by_hyperexcitability, correction=False)
+	print("chi2 p-value:", p)
 
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig")
+
+	print(patient_data.dtypes)
+
+	x = patient_data[['hyperexcitability', 'idh']]
+	x = sm.add_constant(x)
+	y = patient_data['ever_sz']
+
+	model = sm.Logit(y,x).fit()
+	print(model.summary())
+
+
+	params = model.params
+	conf = model.conf_int()
+	odds_ratios = np.exp(params)
+	odds_ci = np.exp(conf)
+
+	print(pd.DataFrame({
+		"OR": odds_ratros,
+		"2.5%": odds_ci[0],
+		"97.5%": odds_ci[1]
+	}))
+
+
+
 
 def redcap_parser (data_file, dict_file):
 
@@ -125,14 +162,12 @@ def find_hyperexcitability (patient_data, eeg_data):
 def find_ever_sz (patient_data):
 	patient_data = patient_data.copy()
 
-	ever_sz = patient_data.loc[patient_data['preop_sz'] == "Yes" | patient_data['late_sz'] == "Yes"]
-	print(ever_sz)
+	ever_sz = patient_data.loc[(patient_data['preop_sz'] == "Yes") | (patient_data['late_sz'] == "Yes")]
+	print (ever_sz)
 
-	# print(hyperexcitable)
+	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id'])
 
-	# patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable)
-
-	# return (patient_data)
+	return (patient_data)
 
 if __name__ == "__main__":
 	import sys
