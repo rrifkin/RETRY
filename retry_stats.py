@@ -14,11 +14,8 @@ def retry_stats (data_file, dict_file):
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
 	patient_data = find_ever_sz (patient_data)
 
-	patient_data["age"] = patient_data["age"].astype(float)
-	patient_data["study_id"] = patient_data["study_id"].astype(int)
-	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False})
-	
-	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
+	print(patient_data.dtypes)
+
 
 	avg_patient_age = patient_data['age'].mean()
 	print("avg_patient_age =", avg_patient_age, "\n")
@@ -52,7 +49,6 @@ def retry_stats (data_file, dict_file):
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig")
 
-	print(patient_data.dtypes)
 
 	x = patient_data[['hyperexcitability', 'idh']]
 	x = sm.add_constant(x)
@@ -103,6 +99,13 @@ def redcap_parser (data_file, dict_file):
 	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance']
 	eeg_data_2 = eeg_data.loc[:,'eeg_inclusion':'eeg_data_complete']
 	eeg_data = pd.concat([eeg_data_1,eeg_data_2], axis=1)
+
+	# clean up data types in patient data
+	patient_data["age"] = patient_data["age"].astype(float)
+	patient_data["study_id"] = patient_data["study_id"].astype(int)
+	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False}).astype('boolean')
+	
+	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
 
 	return (multchoice_dict, patient_data, eeg_data)
 
