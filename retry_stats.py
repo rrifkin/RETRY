@@ -10,53 +10,55 @@ warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning
 
 def retry_stats (data_file, dict_file):
 	
-	multchoice_dict, patient_data, eeg_data = redcap_parser(data_file, dict_file)
+	# Parse data and dictionary files and return patient and eeg dataframes
+	patient_data, eeg_data = redcap_parser(data_file, dict_file)
+
+	# Parse dataframes to find high-level patient characteristics  
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
 	patient_data = find_ever_sz (patient_data)
 
-	print(patient_data.dtypes)
-
-
+	# Descriptive statistics
 	avg_patient_age = patient_data['age'].mean()
-	print("avg_patient_age =", avg_patient_age, "\n")
+	print("\nAverage patient age =", avg_patient_age, "\n")
+
+	percent_female = (len(patient_data[patient_data['sex'] == "Female"]) / len(patient_data) *100)
+	print("Percent Female:", percent_female, "\n")
 	
 	age_by_grade = patient_data.groupby('who')['age'].mean()
-	print("age_by_grade")
+	print("Patient age by WHO tumor grade:")
 	print(age_by_grade, "\n")
 
 	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts().unstack()
+	print("Pre-operative seizures by WHO tumor grade:")
 	print(preop_sz_by_grade, "\n")
 	
 	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts().unstack()
+	print("Late-onset seizures by WHO tumor grade:")
 	print(late_sz_by_grade, "\n")
 	
 	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts().unstack()
+	print("Pre-operative seizures by IDH mutation status:")
 	print(preop_sz_by_idh, "\n")
-	
-	idh_by_grade = patient_data.groupby('who')['idh'].value_counts().unstack()
-	print (idh_by_grade, "\n")
-
-	late_sz_by_hyperexcitability = patient_data.groupby('hyperexcitability')['late_sz'].value_counts().unstack()
-	print(late_sz_by_hyperexcitability, "\n")
-	chi2, p, dof, expected = chi2_contingency(late_sz_by_hyperexcitability, correction=False)
-	print("chi2 p-value:", p)
-
-	ever_sz_by_hyperexcitability = patient_data.groupby('hyperexcitability')['ever_sz'].value_counts().unstack()
-	print(ever_sz_by_hyperexcitability, "\n")
-	chi2, p, dof, expected = chi2_contingency(ever_sz_by_hyperexcitability, correction=False)
-	print("chi2 p-value:", p)
 
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig")
 
+	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
+	print("In patients without seizures at baseline, what factors predict late_onset seizures?\n")
+	patients_wo_baseline_sz = patient_data[patient_data['preop_sz'] != "No"]
+	x = patients_wo_baseline_sz[['hyperexcitability', 'idh', 'who', 'age']].copy()
+	# x['idh'] = x['idh'].map({'Yes': 1, 'No': 0})
+	# x['who'] = x['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
+	y = patients_wo_baseline_sz.loc[:, 'late_sz'].map({'Yes': 1, 'No': 0})
 
-	x = patient_data[['hyperexcitability', 'idh']]
+	# Drop rows where either x or y has NaN
+	valid_idx = x.dropna().index.intersection(y.dropna().index)
+	x = x.loc[valid_idx]
+	y = y.loc[valid_idx]	
 	x = sm.add_constant(x)
-	y = patient_data['ever_sz']
 
 	model = sm.Logit(y,x).fit()
 	print(model.summary())
-
 
 	params = model.params
 	conf = model.conf_int()
@@ -64,12 +66,30 @@ def retry_stats (data_file, dict_file):
 	odds_ci = np.exp(conf)
 
 	print(pd.DataFrame({
-		"OR": odds_ratros,
+		"OR": odds_ratios,
 		"2.5%": odds_ci[0],
 		"97.5%": odds_ci[1]
 	}))
 
+	# Ordinal logistic regression to identify predictors of WHO tumor grade
+	print("What factors predict WHO tumor grade?\n")
+	x = patient_data[['lpd', 'gpd', 'bipd', 'lrda', 'esz', 'ied', 'idh', 'age']].copy()
+	# x['idh'] = x['idh'].map({'Yes': 1, 'No': 0})
+	y = patient_data.loc[:, 'who'] #.map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan}).astype(float)
 
+	# Drop rows where either x or y has NaN
+	valid_idx = x.dropna().index.intersection(y.dropna().index)
+	x = x.loc[valid_idx]
+	y = y.loc[valid_idx]	
+	x = sm.add_constant(x)
+
+	model = sm.MNLogit(y, x).fit()
+	print(model.summary())
+
+	params = model.params
+	odds_ratios = np.exp(params)
+
+	print(pd.DataFrame(odds_ratios, columns=['OR']))
 
 
 def redcap_parser (data_file, dict_file):
@@ -103,11 +123,11 @@ def redcap_parser (data_file, dict_file):
 	# clean up data types in patient data
 	patient_data["age"] = patient_data["age"].astype(float)
 	patient_data["study_id"] = patient_data["study_id"].astype(int)
-	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False}).astype('boolean')
-	
+	patient_data['idh'] = patient_data['idh'].map({'Yes': 1, 'No': 0})
+	patient_data['who'] = patient_data['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
 	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
 
-	return (multchoice_dict, patient_data, eeg_data)
+	return (patient_data, eeg_data)
 
 def convert_to_dict (string):
 	return {pair.split(', ')[0]: pair.split(', ')[1].strip() for pair in string.split(' | ')}
@@ -149,15 +169,25 @@ def find_hyperexcitability (patient_data, eeg_data):
 	eeg_data = eeg_data.copy()
 
 	gpd = eeg_data.loc[eeg_data['gpd_yn'] == "1", 'study_id'].drop_duplicates()
+	patient_data['gpd'] = patient_data['study_id'].isin(gpd).astype(int)
+
 	lpd = eeg_data.loc[eeg_data['lpd_yn'] == "1", 'study_id'].drop_duplicates()
+	patient_data['lpd'] = patient_data['study_id'].isin(lpd).astype(int)
+
 	bipd = eeg_data.loc[eeg_data['bipd_yn'] == "1", 'study_id'].drop_duplicates()
+	patient_data['bipd'] = patient_data['study_id'].isin(bipd).astype(int)
+
 	lrda = eeg_data.loc[eeg_data['lrda_yn'] == "1", 'study_id'].drop_duplicates()
-	sz = eeg_data.loc[eeg_data['sz_yn'] == "1", 'study_id'].drop_duplicates()
+	patient_data['lrda'] = patient_data['study_id'].isin(lrda).astype(int)
+
+	esz = eeg_data.loc[eeg_data['sz_yn'] == "1", 'study_id'].drop_duplicates()
+	patient_data['esz'] = patient_data['study_id'].isin(esz).astype(int)
+
 	ied = eeg_data.loc[eeg_data['epi_disch_yn'] == "1", 'study_id'].drop_duplicates()
+	patient_data['ied'] = patient_data['study_id'].isin(ied).astype(int)
 
-	hyperexcitable = pd.concat([gpd, lpd, bipd, lrda, sz, ied], ignore_index=True)
-
-	patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable)
+	hyperexcitable = pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)
+	patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable).astype(int)
 
 	return (patient_data)
 
@@ -166,9 +196,8 @@ def find_ever_sz (patient_data):
 	patient_data = patient_data.copy()
 
 	ever_sz = patient_data.loc[(patient_data['preop_sz'] == "Yes") | (patient_data['late_sz'] == "Yes")]
-	print (ever_sz)
 
-	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id'])
+	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id']).astype(int)
 
 	return (patient_data)
 
