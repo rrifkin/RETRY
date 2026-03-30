@@ -4,8 +4,6 @@ import pandas as pd
 import statsmodels.api as sm
 from statsmodels.miscmodels.ordinal_model import OrderedModel
 import numpy as np
-import warnings
-warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 
 def retry_stats (data_file, dict_file):
 	
@@ -29,8 +27,8 @@ def redcap_parser (data_file, dict_file):
 	data_dict = pd.read_csv(dict_file, dtype=str)	# Data Dictionary exported as CSV file from RedCap
 
 	# Create separate dataframes of radio/dropdown and checkbox Data Dictionary entries
-	multchoice_dict = data_dict[(data_dict['Field Type'] == 'radio')|(data_dict['Field Type'] == 'dropdown')]
-	checkbox_dict = data_dict[(data_dict['Field Type'] == 'checkbox')]
+	multchoice_dict = data_dict[(data_dict['Field Type'] == 'radio')|(data_dict['Field Type'] == 'dropdown')].copy()
+	checkbox_dict = data_dict[(data_dict['Field Type'] == 'checkbox')].copy()
 
 	# Convert df column to an actual Python dictionary and append it as another column
 	multchoice_dict.loc[:,'parsed_dict'] = multchoice_dict.loc[:,'Choices, Calculations, OR Slider Labels'].apply(convert_to_dict)
@@ -108,31 +106,26 @@ def find_hyperexcitability (patient_data, eeg_data):
 	eeg_data = eeg_data.copy()
 
 	gpd = eeg_data.loc[eeg_data['gpd_yn'] == "1", 'study_id'].drop_duplicates()
-	patient_data['gpd'] = patient_data['study_id'].isin(gpd).astype(int)
-
 	lpd = eeg_data.loc[eeg_data['lpd_yn'] == "1", 'study_id'].drop_duplicates()
-	patient_data['lpd'] = patient_data['study_id'].isin(lpd).astype(int)
-
 	bipd = eeg_data.loc[eeg_data['bipd_yn'] == "1", 'study_id'].drop_duplicates()
-	patient_data['bipd'] = patient_data['study_id'].isin(bipd).astype(int)
-
 	lrda = eeg_data.loc[eeg_data['lrda_yn'] == "1", 'study_id'].drop_duplicates()
-	patient_data['lrda'] = patient_data['study_id'].isin(lrda).astype(int)
-
 	esz = eeg_data.loc[eeg_data['sz_yn'] == "1", 'study_id'].drop_duplicates()
-	patient_data['esz'] = patient_data['study_id'].isin(esz).astype(int)
-
 	ied = eeg_data.loc[eeg_data['epi_disch_yn'] == "1", 'study_id'].drop_duplicates()
-	patient_data['ied'] = patient_data['study_id'].isin(ied).astype(int)
 
-	rpp = pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)
-	patient_data['rpp'] = patient_data['study_id'].isin(rpp).astype(int)
+	new_cols = pd.DataFrame({
+		'gpd': patient_data['study_id'].isin(gpd).astype(int),
+		'lpd': patient_data['study_id'].isin(lpd).astype(int),
+		'bipd': patient_data['study_id'].isin(bipd).astype(int),
+		'lrda': patient_data['study_id'].isin(lrda).astype(int),
+		'esz': patient_data['study_id'].isin(esz).astype(int),
+		'ied': patient_data['study_id'].isin(ied).astype(int),
+		'rpp': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)).astype(int),
+		'any_disc': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, ied], ignore_index=True)).astype(int),
+		'hyperexcitability': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)).astype(int),
+	}, index=patient_data.index)
 
-	any_disc = pd.concat([gpd, lpd, bipd, ied], ignore_index=True)
-	patient_data['any_disc'] = patient_data['study_id'].isin(any_disc).astype(int)
+	patient_data = pd.concat([patient_data, new_cols], axis=1)
 
-	hyperexcitable = pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)
-	patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable).astype(int)
 
 	return (patient_data)
 
