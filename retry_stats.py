@@ -1,12 +1,11 @@
 #! /usr/bin/env python
 
 import pandas as pd
-from scipy.stats import chi2_contingency
 import statsmodels.api as sm
+from statsmodels.miscmodels.ordinal_model import OrderedModel
 import numpy as np
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
-warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning)
 
 def retry_stats (data_file, dict_file):
 	
@@ -15,88 +14,19 @@ def retry_stats (data_file, dict_file):
 
 	# Parse dataframes to find high-level patient characteristics  
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
-	patient_data = find_ever_sz (patient_data)
 
-	# Descriptive statistics
-	avg_patient_age = patient_data['age'].mean()
-	print("\nAverage patient age =", avg_patient_age, "\n")
+	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig", index=False, na_rep="NaN")
+	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig", index=False, na_rep="NaN")
 
-	percent_female = (len(patient_data[patient_data['sex'] == "Female"]) / len(patient_data) *100)
-	print("Percent Female:", percent_female, "\n")
-	
-	age_by_grade = patient_data.groupby('who')['age'].mean()
-	print("Patient age by WHO tumor grade:")
-	print(age_by_grade, "\n")
-
-	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts().unstack()
-	print("Pre-operative seizures by WHO tumor grade:")
-	print(preop_sz_by_grade, "\n")
-	
-	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts().unstack()
-	print("Late-onset seizures by WHO tumor grade:")
-	print(late_sz_by_grade, "\n")
-	
-	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts().unstack()
-	print("Pre-operative seizures by IDH mutation status:")
-	print(preop_sz_by_idh, "\n")
-
-	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig")
-	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig")
-
-	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
-	print("In patients without seizures at baseline, what factors predict late_onset seizures?\n")
-	patients_wo_baseline_sz = patient_data[patient_data['preop_sz'] != "No"]
-	x = patients_wo_baseline_sz[['hyperexcitability', 'idh', 'who', 'age']].copy()
-	# x['idh'] = x['idh'].map({'Yes': 1, 'No': 0})
-	# x['who'] = x['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
-	y = patients_wo_baseline_sz.loc[:, 'late_sz'].map({'Yes': 1, 'No': 0})
-
-	# Drop rows where either x or y has NaN
-	valid_idx = x.dropna().index.intersection(y.dropna().index)
-	x = x.loc[valid_idx]
-	y = y.loc[valid_idx]	
-	x = sm.add_constant(x)
-
-	model = sm.Logit(y,x).fit()
-	print(model.summary())
-
-	params = model.params
-	conf = model.conf_int()
-	odds_ratios = np.exp(params)
-	odds_ci = np.exp(conf)
-
-	print(pd.DataFrame({
-		"OR": odds_ratios,
-		"2.5%": odds_ci[0],
-		"97.5%": odds_ci[1]
-	}))
-
-	# Ordinal logistic regression to identify predictors of WHO tumor grade
-	print("What factors predict WHO tumor grade?\n")
-	x = patient_data[['lpd', 'gpd', 'bipd', 'lrda', 'esz', 'ied', 'idh', 'age']].copy()
-	# x['idh'] = x['idh'].map({'Yes': 1, 'No': 0})
-	y = patient_data.loc[:, 'who'] #.map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan}).astype(float)
-
-	# Drop rows where either x or y has NaN
-	valid_idx = x.dropna().index.intersection(y.dropna().index)
-	x = x.loc[valid_idx]
-	y = y.loc[valid_idx]	
-	x = sm.add_constant(x)
-
-	model = sm.MNLogit(y, x).fit()
-	print(model.summary())
-
-	params = model.params
-	odds_ratios = np.exp(params)
-
-	print(pd.DataFrame(odds_ratios, columns=['OR']))
-
+	descriptive_statistics (patient_data)
+	late_onset_regression (patient_data, ['hyperexcitability', 'idh', 'who', 'age'])
+	grade_regression (patient_data, ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'])
 
 def redcap_parser (data_file, dict_file):
 
 	# Import CSV files as DataFrames
-	raw_data = pd.read_csv(data_file, dtype=str)				# Raw patient and EEG data exported as CSV from RedCap
-	data_dict = pd.read_csv(dict_file, dtype=str)				# Data Dictionary exported as CSV file from RedCap
+	raw_data = pd.read_csv(data_file, dtype=str)	# Raw patient and EEG data exported as CSV from RedCap
+	data_dict = pd.read_csv(dict_file, dtype=str)	# Data Dictionary exported as CSV file from RedCap
 
 	# Create separate dataframes of radio/dropdown and checkbox Data Dictionary entries
 	multchoice_dict = data_dict[(data_dict['Field Type'] == 'radio')|(data_dict['Field Type'] == 'dropdown')]
@@ -111,19 +41,28 @@ def redcap_parser (data_file, dict_file):
 	cleaned_data = replace_with_dict_checkboxes(multchoice_cleaned_data, checkbox_dict)
 
 	# create a dataframe of just the patient data
-	patient_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] != 'eeg_data']
-	patient_data = patient_data.loc[:,'study_id':'glioma_complete']
+	patient_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] != 'eeg_data'].copy()
+	patient_data = patient_data.loc[:,'study_id':'glioma_complete'].copy()
 
 	# create a dataframe of just the EEG data
-	eeg_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] == 'eeg_data']
-	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance']
-	eeg_data_2 = eeg_data.loc[:,'eeg_inclusion':'eeg_data_complete']
+	eeg_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] == 'eeg_data'].copy()
+	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance'].copy()
+	eeg_data_2 = eeg_data.loc[:,'eeg_inclusion':'eeg_data_complete'].copy()
 	eeg_data = pd.concat([eeg_data_1,eeg_data_2], axis=1)
 
-	# clean up data types in patient data
+	# remove excluded patients
+	patient_data = patient_data[patient_data['inclusion'].str.strip() == 'INCLUDED'].copy()
+	included_study_ids = patient_data['study_id'].unique()
+	eeg_data = eeg_data[eeg_data['study_id'].isin(included_study_ids)].copy()
+
+	# remove excluded EEGs
+	eeg_data = eeg_data[eeg_data['eeg_inclusion'].str.strip() == 'INCLUDED'].copy()
+
+	# clean up data types in patient and EEG data
 	patient_data["age"] = patient_data["age"].astype(float)
 	patient_data["study_id"] = patient_data["study_id"].astype(int)
-	patient_data['idh'] = patient_data['idh'].map({'Yes': 1, 'No': 0})
+	patient_data['idh'] = patient_data['idh'].map({'Yes': 1, 'No': 0, '': np.nan})
+
 	patient_data['who'] = patient_data['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
 	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
 
@@ -186,20 +125,100 @@ def find_hyperexcitability (patient_data, eeg_data):
 	ied = eeg_data.loc[eeg_data['epi_disch_yn'] == "1", 'study_id'].drop_duplicates()
 	patient_data['ied'] = patient_data['study_id'].isin(ied).astype(int)
 
+	rpp = pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)
+	patient_data['rpp'] = patient_data['study_id'].isin(rpp).astype(int)
+
+	any_disc = pd.concat([gpd, lpd, bipd, ied], ignore_index=True)
+	patient_data['any_disc'] = patient_data['study_id'].isin(any_disc).astype(int)
+
 	hyperexcitable = pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)
 	patient_data['hyperexcitability'] = patient_data['study_id'].isin(hyperexcitable).astype(int)
 
 	return (patient_data)
 
-# determines if patient ever had a clinical seizure
-def find_ever_sz (patient_data):
-	patient_data = patient_data.copy()
+def late_onset_regression (patient_data, predictor_cols):
 
-	ever_sz = patient_data.loc[(patient_data['preop_sz'] == "Yes") | (patient_data['late_sz'] == "Yes")]
+	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
+	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
+	patients_wo_baseline_sz = patient_data[patient_data['preop_sz'] != "No"].copy()
+	x = patients_wo_baseline_sz[predictor_cols].copy()
+	y = patients_wo_baseline_sz.loc[:, 'late_sz'].map({'Yes': 1, 'No': 0})
 
-	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id']).astype(int)
+	# Drop rows where either x or y has NaN
+	valid_idx = x.dropna().index.intersection(y.dropna().index)
+	x = x.loc[valid_idx]
+	y = y.loc[valid_idx]	
+	x = sm.add_constant(x)
 
-	return (patient_data)
+	model = sm.Logit(y,x).fit()
+	print(model.summary())
+
+	params = model.params
+	conf = model.conf_int()
+	odds_ratios = np.exp(params)
+	odds_ci = np.exp(conf)
+
+	print(pd.DataFrame({
+		"OR": odds_ratios,
+		"2.5%": odds_ci[0],
+		"97.5%": odds_ci[1]
+	}))
+
+def grade_regression (patient_data, predictor_cols):
+	# Ordinal logistic regression to identify predictors of WHO tumor grade
+	print("\nWhat factors predict WHO tumor grade?\n")
+	model_df = patient_data[predictor_cols + ['who']].dropna().copy()
+
+	x = model_df[predictor_cols]
+	y_int = model_df['who'].astype(int)
+	y = pd.Categorical(y_int, categories=sorted(y_int.unique()), ordered=True)
+
+	ord_model = OrderedModel(y, x, distr='logit')
+	ord_res = ord_model.fit(method='bfgs', disp=False)
+	print(ord_res.summary())
+
+	# Odds ratios for predictors only (exclude threshold/cutpoint params like "1/2")
+	params = ord_res.params
+	conf = ord_res.conf_int()
+
+	predictor_mask = ~params.index.str.contains('/')
+	predictor_params = params[predictor_mask]
+	predictor_conf = conf.loc[predictor_params.index]
+
+	odds_ratios = np.exp(predictor_params)
+	odds_ci = np.exp(predictor_conf)
+
+	print(pd.DataFrame({
+		"OR": odds_ratios,
+		"2.5%": odds_ci[0],
+		"97.5%": odds_ci[1]}))
+
+def descriptive_statistics (patient_data):
+	# Descriptive statistics
+	num_included = len(patient_data)	
+	print("Number of patients included (n) =", num_included, "\n")
+
+	avg_patient_age = patient_data['age'].mean()
+	print("Average patient age =", avg_patient_age, "\n")
+
+	percent_female = (len(patient_data[patient_data['sex'] == "Female"]) / len(patient_data) *100)
+	print("Percent Female:", percent_female, "\n")
+	
+	age_by_grade = patient_data.groupby('who')['age'].mean()
+	print("Patient age by WHO tumor grade:")
+	print(age_by_grade, "\n")
+
+	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts().unstack()
+	print("Pre-operative seizures by WHO tumor grade:")
+	print(preop_sz_by_grade, "\n")
+	
+	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts().unstack()
+	print("Late-onset seizures by WHO tumor grade:")
+	print(late_sz_by_grade, "\n")
+	
+	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts().unstack()
+	print("Pre-operative seizures by IDH mutation status:")
+	print(preop_sz_by_idh, "\n")
 
 if __name__ == "__main__":
 	import sys
