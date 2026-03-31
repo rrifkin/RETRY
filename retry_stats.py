@@ -1,9 +1,8 @@
 #! /usr/bin/env python
 
 import pandas as pd
-import statsmodels.api as sm
-from statsmodels.miscmodels.ordinal_model import OrderedModel
 import numpy as np
+from regression_models import logistic_regression, ordinal_regression
 
 def retry_stats (data_file, dict_file):
 	
@@ -15,10 +14,16 @@ def retry_stats (data_file, dict_file):
 
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig", index=False, na_rep="NaN")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig", index=False, na_rep="NaN")
-
 	descriptive_statistics (patient_data)
-	late_onset_regression (patient_data, ['hyperexcitability', 'idh', 'who', 'age'])
-	grade_regression (patient_data, ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'])
+
+	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
+	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
+	patients_wo_baseline_sz = patient_data[patient_data['preop_sz'] != "No"].copy()
+	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
+
+	# Ordinal logistic regression to identify predictors of WHO tumor grade
+	print("\nWhat factors predict WHO tumor grade?\n")
+	ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'])
 
 def redcap_parser (data_file, dict_file):
 
@@ -126,65 +131,7 @@ def find_hyperexcitability (patient_data, eeg_data):
 
 	patient_data = pd.concat([patient_data, new_cols], axis=1)
 
-
 	return (patient_data)
-
-def late_onset_regression (patient_data, predictor_cols):
-
-	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
-	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
-	patients_wo_baseline_sz = patient_data[patient_data['preop_sz'] != "No"].copy()
-	x = patients_wo_baseline_sz[predictor_cols].copy()
-	y = patients_wo_baseline_sz.loc[:, 'late_sz'].map({'Yes': 1, 'No': 0})
-
-	# Drop rows where either x or y has NaN
-	valid_idx = x.dropna().index.intersection(y.dropna().index)
-	x = x.loc[valid_idx]
-	y = y.loc[valid_idx]	
-	x = sm.add_constant(x)
-
-	model = sm.Logit(y,x).fit()
-	print(model.summary())
-
-	params = model.params
-	conf = model.conf_int()
-	odds_ratios = np.exp(params)
-	odds_ci = np.exp(conf)
-
-	print(pd.DataFrame({
-		"OR": odds_ratios,
-		"2.5%": odds_ci[0],
-		"97.5%": odds_ci[1]
-	}))
-
-def grade_regression (patient_data, predictor_cols):
-	# Ordinal logistic regression to identify predictors of WHO tumor grade
-	print("\nWhat factors predict WHO tumor grade?\n")
-	model_df = patient_data[predictor_cols + ['who']].dropna().copy()
-
-	x = model_df[predictor_cols]
-	y_int = model_df['who'].astype(int)
-	y = pd.Categorical(y_int, categories=sorted(y_int.unique()), ordered=True)
-
-	ord_model = OrderedModel(y, x, distr='logit')
-	ord_res = ord_model.fit(method='bfgs', disp=False)
-	print(ord_res.summary())
-
-	# Odds ratios for predictors only (exclude threshold/cutpoint params like "1/2")
-	params = ord_res.params
-	conf = ord_res.conf_int()
-
-	predictor_mask = ~params.index.str.contains('/')
-	predictor_params = params[predictor_mask]
-	predictor_conf = conf.loc[predictor_params.index]
-
-	odds_ratios = np.exp(predictor_params)
-	odds_ci = np.exp(predictor_conf)
-
-	print(pd.DataFrame({
-		"OR": odds_ratios,
-		"2.5%": odds_ci[0],
-		"97.5%": odds_ci[1]}))
 
 def descriptive_statistics (patient_data):
 	# Descriptive statistics
