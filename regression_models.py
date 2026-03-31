@@ -29,11 +29,14 @@ def logistic_regression (patients, outcome, predictor_cols):
 	odds_ratios = np.exp(params)
 	odds_ci = np.exp(conf)
 
-	print(pd.DataFrame({
+	or_table = pd.DataFrame({
 		"OR": odds_ratios,
 		"2.5%": odds_ci[0],
 		"97.5%": odds_ci[1]
-	}))
+	})
+
+	print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
+
 
 def ordinal_regression (patients, outcome, predictor_cols):
 
@@ -69,7 +72,9 @@ def ordinal_regression (patients, outcome, predictor_cols):
 	odds_ratios = np.exp(predictor_params)
 	odds_ci = np.exp(predictor_conf)
 
-	print(pd.DataFrame({
+	or_table = pd.DataFrame({
 		"OR": odds_ratios,
 		"2.5%": odds_ci[0],
-		"97.5%": odds_ci[1]}))
+		"97.5%": odds_ci[1]})
+	
+	print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))

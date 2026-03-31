@@ -11,6 +11,7 @@ def retry_stats (data_file, dict_file):
 
 	# Parse dataframes to find high-level patient characteristics  
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
+	patient_data = find_ever_sz (patient_data)
 
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig", index=False, na_rep="NaN")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig", index=False, na_rep="NaN")
@@ -18,24 +19,25 @@ def retry_stats (data_file, dict_file):
 
 	# Logistic regression to identify predictors of any seizure
 	print("\nIn all patients, what factors predict any seizures?\n")
+	logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who']) # , 'age'])
 
-	logistic_regression (patient_data, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
+	# Logistic regression to identify predictors of any seizure
+	print("\nIn all patients, what factors predict any seizures?\n")
+	logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who']) #, 'age'])
+
+	# Logistic regression to identify predictors of any seizure
+	print("\nIn all patients, what factors predict any seizures?\n")
+	logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who']) #, 'age'])
 
 	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
 	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
-	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
-
-	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
-	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
-	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
-	patients_wo_baseline_sz = patient_data[pts].copy()
-	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'])
+	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who']) #, 'age'])
 
 	# Ordinal logistic regression to identify predictors of WHO tumor grade
 	print("\nWhat factors predict WHO tumor grade?\n")
-	ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'])
+	ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh']) #, 'age'])
 
 def redcap_parser (data_file, dict_file):
 
@@ -140,10 +142,21 @@ def find_hyperexcitability (patient_data, eeg_data):
 		'ied': patient_data['study_id'].isin(ied).astype("boolean"),
 		'rpp': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)).astype("boolean"),
 		'any_disc': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, ied], ignore_index=True)).astype("boolean"),
+		'pd': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd], ignore_index=True)).astype("boolean"),
 		'hyperexcitability': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)).astype("boolean"),
 	}, index=patient_data.index)
 
 	patient_data = pd.concat([patient_data, new_cols], axis=1)
+
+	return (patient_data)
+
+# determines if patient ever had a clinical seizure
+def find_ever_sz (patient_data):
+	patient_data = patient_data.copy()
+
+	ever_sz = patient_data.loc[(patient_data['preop_sz'] == True) | (patient_data['late_sz'] == True)]
+
+	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id'])
 
 	return (patient_data)
 
