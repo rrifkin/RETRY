@@ -16,10 +16,22 @@ def retry_stats (data_file, dict_file):
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig", index=False, na_rep="NaN")
 	descriptive_statistics (patient_data)
 
+	# Logistic regression to identify predictors of any seizure
+	print("\nIn all patients, what factors predict any seizures?\n")
+
+	logistic_regression (patient_data, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
+
 	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
 	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
-	patients_wo_baseline_sz = patient_data[patient_data['preop_sz'] != "No"].copy()
+	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
+	patients_wo_baseline_sz = patient_data[pts].copy()
 	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
+
+	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
+	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
+	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
+	patients_wo_baseline_sz = patient_data[pts].copy()
+	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'])
 
 	# Ordinal logistic regression to identify predictors of WHO tumor grade
 	print("\nWhat factors predict WHO tumor grade?\n")
@@ -64,7 +76,9 @@ def redcap_parser (data_file, dict_file):
 	# clean up data types in patient and EEG data
 	patient_data["age"] = patient_data["age"].astype(float)
 	patient_data["study_id"] = patient_data["study_id"].astype(int)
-	patient_data['idh'] = patient_data['idh'].map({'Yes': 1, 'No': 0, '': np.nan})
+	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
+	patient_data['preop_sz'] = patient_data['preop_sz'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
+	patient_data['late_sz'] = patient_data['late_sz'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
 
 	patient_data['who'] = patient_data['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
 	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
@@ -118,15 +132,15 @@ def find_hyperexcitability (patient_data, eeg_data):
 	ied = eeg_data.loc[eeg_data['epi_disch_yn'] == "1", 'study_id'].drop_duplicates()
 
 	new_cols = pd.DataFrame({
-		'gpd': patient_data['study_id'].isin(gpd).astype(int),
-		'lpd': patient_data['study_id'].isin(lpd).astype(int),
-		'bipd': patient_data['study_id'].isin(bipd).astype(int),
-		'lrda': patient_data['study_id'].isin(lrda).astype(int),
-		'esz': patient_data['study_id'].isin(esz).astype(int),
-		'ied': patient_data['study_id'].isin(ied).astype(int),
-		'rpp': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)).astype(int),
-		'any_disc': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, ied], ignore_index=True)).astype(int),
-		'hyperexcitability': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)).astype(int),
+		'gpd': patient_data['study_id'].isin(gpd).astype("boolean"),
+		'lpd': patient_data['study_id'].isin(lpd).astype("boolean"),
+		'bipd': patient_data['study_id'].isin(bipd).astype("boolean"),
+		'lrda': patient_data['study_id'].isin(lrda).astype("boolean"),
+		'esz': patient_data['study_id'].isin(esz).astype("boolean"),
+		'ied': patient_data['study_id'].isin(ied).astype("boolean"),
+		'rpp': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)).astype("boolean"),
+		'any_disc': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, ied], ignore_index=True)).astype("boolean"),
+		'hyperexcitability': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)).astype("boolean"),
 	}, index=patient_data.index)
 
 	patient_data = pd.concat([patient_data, new_cols], axis=1)

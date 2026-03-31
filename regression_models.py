@@ -5,17 +5,23 @@ import numpy as np
 
 def logistic_regression (patients, outcome, predictor_cols):
 
-	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
-	x = patients[predictor_cols].copy()
-	y = patients.loc[:, outcome].map({'Yes': 1, 'No': 0})
+	model_df = patients[predictor_cols + [outcome]].copy()
 
-	# Drop rows where either x or y has NaN
-	valid_idx = x.dropna().index.intersection(y.dropna().index)
-	x = x.loc[valid_idx]
-	y = y.loc[valid_idx]	
-	x = sm.add_constant(x)
+	for c in predictor_cols:
+		if str(model_df[c].dtype) == "boolean":
+			model_df[c] = model_df[c].astype("Float64")
+		model_df[c] = pd.to_numeric(model_df[c], errors="coerce")
 
-	model = sm.Logit(y,x).fit()
+	if str(model_df[outcome].dtype) == "boolean":
+		model_df[outcome] = model_df[outcome].astype("Float64")
+	model_df[outcome] = pd.to_numeric(model_df[outcome], errors="coerce")
+
+	model_df = model_df.dropna()
+
+	x = sm.add_constant(model_df[predictor_cols].astype(float), has_constant="add")
+	y = model_df[outcome].astype(int)
+
+	model = sm.Logit(y,x).fit(disp=False)
 	print(model.summary())
 
 	params = model.params
@@ -31,9 +37,20 @@ def logistic_regression (patients, outcome, predictor_cols):
 
 def ordinal_regression (patients, outcome, predictor_cols):
 
-	model_df = patients[predictor_cols + [outcome]].dropna().copy()
+	model_df = patients[predictor_cols + [outcome]].copy()
 
-	x = model_df[predictor_cols]
+	for c in predictor_cols:
+		if str(model_df[c].dtype) == "boolean":
+			model_df[c] = model_df[c].astype("Float64")
+		model_df[c] = pd.to_numeric(model_df[c], errors="coerce")
+
+	if str(model_df[outcome].dtype) == "boolean":
+		model_df[outcome] = model_df[outcome].astype("Float64")
+	model_df[outcome] = pd.to_numeric(model_df[outcome], errors="coerce")
+
+	model_df = model_df.dropna()
+
+	x = model_df[predictor_cols].astype(float)
 	y_int = model_df[outcome].astype(int)
 	y = pd.Categorical(y_int, categories=sorted(y_int.unique()), ordered=True)
 
