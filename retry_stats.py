@@ -1,126 +1,55 @@
 #! /usr/bin/env python
 
 import pandas as pd
-import numpy as np
-from regression_models import logistic_regression, ordinal_regression
+from retry_parser import redcap_parser
+from retry_models import logistic_regression, ordinal_regression
+from retry_plots import plot_descriptive_stats
 
 def retry_stats (data_file, dict_file):
 	
 	# Parse data and dictionary files and return patient and eeg dataframes
 	patient_data, eeg_data = redcap_parser(data_file, dict_file)
 
-	# Parse dataframes to find high-level patient characteristics  
+	# Parse dataframes to find high-level patient characteristics
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
 	patient_data = find_ever_sz (patient_data)
 
 	patient_data.to_csv("~/Desktop/patient_data.csv",encoding="utf-8-sig", index=False, na_rep="NaN")
 	eeg_data.to_csv("~/Desktop/eeg_data.csv", encoding="utf-8-sig", index=False, na_rep="NaN")
 	descriptive_statistics (patient_data)
+	plot_descriptive_stats (patient_data, "~/Desktop/")
 
-	# Logistic regression to identify predictors of any seizure
-	print("\nIn all patients, what factors predict any seizures?\n")
+	# hyperexcitability <-> ever having seizures
+	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
 	logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who']) # , 'age'])
 
-	# Logistic regression to identify predictors of any seizure
-	print("\nIn all patients, what factors predict any seizures?\n")
+	# specific EEG factors (rpp, esz, ied) <-> ever having seizures
+	print("\nIs there an association between specific EEG factors (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
 	logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who']) #, 'age'])
 
-	# Logistic regression to identify predictors of any seizure
-	print("\nIn all patients, what factors predict any seizures?\n")
+	# specific EEG factors (any_disc, lrda, esz) <-> ever having seizures
+	print("\nIs there an association between specific EEG factors (any_disc, lrda, esz) at any time point, and clinical seizure at any time point?")
 	logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who']) #, 'age'])
 
-	# Logistic regression to identify predictors of late-onset seizures in patients without seizures at baseline
-	print("\nIn patients without seizures at baseline, what factors predict late_onset seizures?\n")
+	# hyperexcitability <-> late-onset seizures
+	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and late-onset clinical seizures?")
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
 	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who']) #, 'age'])
 
-	# Ordinal logistic regression to identify predictors of WHO tumor grade
-	print("\nWhat factors predict WHO tumor grade?\n")
-	ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh']) #, 'age'])
-
-def redcap_parser (data_file, dict_file):
-
-	# Import CSV files as DataFrames
-	raw_data = pd.read_csv(data_file, dtype=str)	# Raw patient and EEG data exported as CSV from RedCap
-	data_dict = pd.read_csv(dict_file, dtype=str)	# Data Dictionary exported as CSV file from RedCap
-
-	# Create separate dataframes of radio/dropdown and checkbox Data Dictionary entries
-	multchoice_dict = data_dict[(data_dict['Field Type'] == 'radio')|(data_dict['Field Type'] == 'dropdown')].copy()
-	checkbox_dict = data_dict[(data_dict['Field Type'] == 'checkbox')].copy()
-
-	# Convert df column to an actual Python dictionary and append it as another column
-	multchoice_dict.loc[:,'parsed_dict'] = multchoice_dict.loc[:,'Choices, Calculations, OR Slider Labels'].apply(convert_to_dict)
-	checkbox_dict.loc[:,'parsed_dict'] = checkbox_dict.loc[:,'Choices, Calculations, OR Slider Labels'].apply(convert_to_dict)
+	# specific EEG factors <-> late-onset seizures
+	print("\nIs there an association between specific EEG factors (any_disc, lrda, esz) at any time point, and late-onset clinical seizures?")
+	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
+	patients_wo_baseline_sz = patient_data[pts].copy()
+	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who']) #, 'age'])
 	
-	# In df containing patient/EEG data, replace meaningless numbers with their meaning using dictionary
-	multchoice_cleaned_data = replace_with_dict(raw_data, multchoice_dict)
-	cleaned_data = replace_with_dict_checkboxes(multchoice_cleaned_data, checkbox_dict)
+	# hyperexcitability <-> tumor grade
+	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) and WHO tumor grade?\n")
+	ordinal_regression (patient_data, 'who', ['hyperexcitability', 'idh']) #, 'age'])
 
-	# create a dataframe of just the patient data
-	patient_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] != 'eeg_data'].copy()
-	patient_data = patient_data.loc[:,'study_id':'glioma_complete'].copy()
-
-	# create a dataframe of just the EEG data
-	eeg_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] == 'eeg_data'].copy()
-	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance'].copy()
-	eeg_data_2 = eeg_data.loc[:,'eeg_inclusion':'eeg_data_complete'].copy()
-	eeg_data = pd.concat([eeg_data_1,eeg_data_2], axis=1)
-
-	# remove excluded patients
-	patient_data = patient_data[patient_data['inclusion'].str.strip() == 'INCLUDED'].copy()
-	included_study_ids = patient_data['study_id'].unique()
-	eeg_data = eeg_data[eeg_data['study_id'].isin(included_study_ids)].copy()
-
-	# remove excluded EEGs
-	eeg_data = eeg_data[eeg_data['eeg_inclusion'].str.strip() == 'INCLUDED'].copy()
-
-	# clean up data types in patient and EEG data
-	patient_data["age"] = patient_data["age"].astype(float)
-	patient_data["study_id"] = patient_data["study_id"].astype(int)
-	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
-	patient_data['preop_sz'] = patient_data['preop_sz'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
-	patient_data['late_sz'] = patient_data['late_sz'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
-
-	patient_data['who'] = patient_data['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
-	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
-
-	return (patient_data, eeg_data)
-
-def convert_to_dict (string):
-	return {pair.split(', ')[0]: pair.split(', ')[1].strip() for pair in string.split(' | ')}
-
-# replaces radio / dropdown meaningless numbers with their meaning using a dictionary
-def replace_with_dict(raw_data, multchoice_dict):
-	raw_data = raw_data.copy()
-	for index, row in multchoice_dict.iterrows():
-		column_name = row['Variable / Field Name']
-		replacement_dict = row['parsed_dict']
-		
-		if column_name in raw_data.columns:
-			raw_data[column_name] = raw_data[column_name].replace(replacement_dict)
-
-	#renaming this variable because it's really confusing
-	raw_data.rename(columns={'any_sz': 'late_sz'}, inplace=True)
-
-	return raw_data
-
-# replaces checkbox meaningless numbers with their meaning using a dictionary
-def replace_with_dict_checkboxes(raw_data, checkbox_dict):
-	raw_data = raw_data.copy()
-	for index, row in checkbox_dict.iterrows():
-		column_name = row['Variable / Field Name']
-		replacement_dict = row['parsed_dict']
-
-		if column_name in raw_data.columns:
-			output = []
-			for i, this_item in raw_data[column_name].items():
-				this_string =str(this_item)
-				result = ",".join(replacement_dict.get(item.strip(), item.strip()) for item in this_string.split(","))
-				output.append(result)
-			raw_data[column_name] = output
-
-	return (raw_data)
+	# specific EEG factors <-> tumor grade
+	print("\nIs there an association between specific EEG factors (lpd, gpd, lrda, esz, ied) and WHO tumor grade?\n")
+	ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh']) #, 'age'])
 
 def find_hyperexcitability (patient_data, eeg_data):
 	patient_data = patient_data.copy()
