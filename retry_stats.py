@@ -3,7 +3,7 @@
 import pandas as pd
 from retry_parser import redcap_parser
 from retry_models import logistic_regression, ordinal_regression
-from retry_plots import plot_descriptive_stats
+from retry_plots import plot_descriptive_stats, plot_forest_plot
 
 def retry_stats (data_file, dict_file):
 	
@@ -21,7 +21,8 @@ def retry_stats (data_file, dict_file):
 
 	# hyperexcitability <-> ever having seizures
 	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
-	logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who']) # , 'age'])
+	results = logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who']) # , 'age'])
+	plot_forest_plot(results, "ever_sz_hyperexcitability", "~/Desktop")
 
 	# specific EEG factors (rpp, esz, ied) <-> ever having seizures
 	print("\nIs there an association between specific EEG factors (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
@@ -49,7 +50,8 @@ def retry_stats (data_file, dict_file):
 
 	# specific EEG factors <-> tumor grade
 	print("\nIs there an association between specific EEG factors (lpd, gpd, lrda, esz, ied) and WHO tumor grade?\n")
-	ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh']) #, 'age'])
+	results = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh']) #, 'age'])
+	plot_forest_plot(results, "specific_eeg_factors_by_grade", "~/Desktop")
 
 def find_hyperexcitability (patient_data, eeg_data):
 	patient_data = patient_data.copy()

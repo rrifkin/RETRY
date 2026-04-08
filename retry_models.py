@@ -37,6 +37,16 @@ def logistic_regression (patients, outcome, predictor_cols):
 
 	print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
 
+	results = {}
+	for var in predictor_cols:
+		if var in odds_ratios.index:
+			results[var] = (
+				odds_ratios[var],
+				odds_ci.loc[var, 0],
+				odds_ci.loc[var, 1]
+			)
+	return results
+
 
 def ordinal_regression (patients, outcome, predictor_cols):
 
@@ -78,3 +88,13 @@ def ordinal_regression (patients, outcome, predictor_cols):
 		"97.5%": odds_ci[1]})
 	
 	print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
+
+	results = {}
+	for var in predictor_cols:
+		if var in odds_ratios.index:
+			results[var] = (
+				odds_ratios[var],
+				odds_ci.loc[var, 0],
+				odds_ci.loc[var, 1]
+			)
+	return results
