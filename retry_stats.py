@@ -21,36 +21,36 @@ def retry_stats (data_file, dict_file):
 
 	# hyperexcitability <-> ever having seizures
 	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
-	results = logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who']) # , 'age'])
+	results = logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who', 'age'])
 	plot_forest_plot(results, "ever_sz_hyperexcitability", "~/Desktop")
 
 	# specific EEG factors (rpp, esz, ied) <-> ever having seizures
 	print("\nIs there an association between specific EEG factors (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
-	logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who']) #, 'age'])
+	logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'])
 
 	# specific EEG factors (any_disc, lrda, esz) <-> ever having seizures
 	print("\nIs there an association between specific EEG factors (any_disc, lrda, esz) at any time point, and clinical seizure at any time point?")
-	logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who']) #, 'age'])
+	logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'])
 
 	# hyperexcitability <-> late-onset seizures
 	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and late-onset clinical seizures?")
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
-	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who']) #, 'age'])
+	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
 
 	# specific EEG factors <-> late-onset seizures
 	print("\nIs there an association between specific EEG factors (any_disc, lrda, esz) at any time point, and late-onset clinical seizures?")
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
-	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who']) #, 'age'])
+	logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'])
 	
 	# hyperexcitability <-> tumor grade
 	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) and WHO tumor grade?\n")
-	ordinal_regression (patient_data, 'who', ['hyperexcitability', 'idh']) #, 'age'])
+	ordinal_regression (patient_data, 'who', ['hyperexcitability', 'idh', 'age'])
 
 	# specific EEG factors <-> tumor grade
 	print("\nIs there an association between specific EEG factors (lpd, gpd, lrda, esz, ied) and WHO tumor grade?\n")
-	results = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh']) #, 'age'])
+	results = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'])
 	plot_forest_plot(results, "specific_eeg_factors_by_grade", "~/Desktop")
 
 def find_hyperexcitability (patient_data, eeg_data):
