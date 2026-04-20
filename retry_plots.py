@@ -21,11 +21,13 @@ def plot_forest_plot(model_results, model_name, output_dir):
 		[ci_uppers[i] - coefs[i] for i in range(len(coefs))]
 	]
 
-	fig, ax = plt.subplots(figsize=(10, 0.4 * len(variables) + 1))
+	fig, ax = plt.subplots(figsize=(10, 0.5 * len(variables) + 1))
 
 	y_pos = np.arange(len(variables))
 	ax.errorbar(coefs, y_pos, xerr=errors, fmt='o', markersize=8, capsize=5, capthick=2, color='steelblue')
 	ax.axvline(x=1, color='red', linestyle='--', linewidth=1.5, alpha=0.7)
+	ax.set_xlim(0,10)
+	ax.set_ylim(-0.5, len(variables) - 0.5)
 
 	ax.set_yticks(y_pos)
 	ax.set_yticklabels(variables)
