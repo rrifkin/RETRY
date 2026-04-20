@@ -26,7 +26,7 @@ def plot_forest_plot(model_results, model_name, output_dir):
 	y_pos = np.arange(len(variables))
 	ax.errorbar(coefs, y_pos, xerr=errors, fmt='o', markersize=8, capsize=5, capthick=2, color='steelblue')
 	ax.axvline(x=1, color='red', linestyle='--', linewidth=1.5, alpha=0.7)
-	ax.set_xlim(0,10)
+	ax.set_xlim(0,8)
 	ax.set_ylim(-0.5, len(variables) - 0.5)
 
 	ax.set_yticks(y_pos)
