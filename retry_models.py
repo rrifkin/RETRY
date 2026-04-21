@@ -1,9 +1,11 @@
+import os
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.miscmodels.ordinal_model import OrderedModel
 import numpy as np
+from tabulate import tabulate
 
-def logistic_regression (patients, outcome, predictor_cols):
+def logistic_regression (patients, outcome, predictor_cols, model_name, output_dir):
 
 	model_df = patients[predictor_cols + [outcome]].copy()
 
@@ -22,8 +24,7 @@ def logistic_regression (patients, outcome, predictor_cols):
 	y = model_df[outcome].astype(int)
 
 	model = sm.Logit(y,x).fit(disp=False)
-	print(model.summary())
-
+	
 	params = model.params
 	conf = model.conf_int()
 	odds_ratios = np.exp(params)
@@ -35,7 +36,10 @@ def logistic_regression (patients, outcome, predictor_cols):
 		"97.5%": odds_ci[1]
 	})
 
-	print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
+	with open(os.path.join(output_dir, f"{model_name}.txt"), "w") as f:
+		f.write(model.summary().as_text())
+		f.write("\n\n")
+		f.write(tabulate(or_table, headers='keys', tablefmt='github', floatfmt=".3f"))
 
 	results = {}
 	for var in predictor_cols:
@@ -48,7 +52,7 @@ def logistic_regression (patients, outcome, predictor_cols):
 	return results
 
 
-def ordinal_regression (patients, outcome, predictor_cols):
+def ordinal_regression (patients, outcome, predictor_cols, model_name, output_dir):
 
 	model_df = patients[predictor_cols + [outcome]].copy()
 
@@ -69,7 +73,7 @@ def ordinal_regression (patients, outcome, predictor_cols):
 
 	ord_model = OrderedModel(y, x, distr='logit')
 	ord_res = ord_model.fit(method='bfgs', disp=False)
-	print(ord_res.summary())
+	# print(ord_res.summary())
 
 	# Odds ratios for predictors only (exclude threshold/cutpoint params like "1/2")
 	params = ord_res.params
@@ -87,7 +91,12 @@ def ordinal_regression (patients, outcome, predictor_cols):
 		"2.5%": odds_ci[0],
 		"97.5%": odds_ci[1]})
 	
-	print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
+	with open(os.path.join(output_dir, f"{model_name}.txt"), "w") as f:
+		f.write(ord_res.summary().as_text())
+		f.write("\n\n")
+		f.write(tabulate(or_table, headers='keys', tablefmt='github', floatfmt=".3f"))
+
+	# print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
 
 	results = {}
 	for var in predictor_cols:

@@ -17,49 +17,46 @@ def retry_stats (data_file, dict_file):
 	patient_data = find_hyperexcitability (patient_data, eeg_data)
 	patient_data = find_ever_sz (patient_data)
 
-	patient_data.to_csv(os.path.join(output_path, "patient_data.csv"),encoding="utf-8-sig", index=False, na_rep="NaN")
-	eeg_data.to_csv(os.path.join(output_path, "eeg_data.csv"), encoding="utf-8-sig", index=False, na_rep="NaN")
+	# Output individual dataframes (if needed for debugging)
+	# patient_data.to_csv(os.path.join(output_path, "patient_data.csv"),encoding="utf-8-sig", index=False, na_rep="NaN")
+	# eeg_data.to_csv(os.path.join(output_path, "eeg_data.csv"), encoding="utf-8-sig", index=False, na_rep="NaN")
+
+	# Descriptive statistics
 	descriptive_statistics (patient_data)
 	plot_descriptive_stats (patient_data, output_path)
 
-	# hyperexcitability <-> ever having seizures
-	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
-	ever_sz_hyperexcitability = logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who', 'age'])
-	plot_forest_plot(ever_sz_hyperexcitability, "ever_sz_hyperexcitability", output_path)
+	# Regression models
+	model_name = "ever hyperexcitability (esz, ied, rpp) vs. ever seizures"
+	model = logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
-	# specific EEG factors (rpp, esz, ied) <-> ever having seizures
-	print("\nIs there an association between specific EEG factors (esz, ied, rpp) at any time point, and clinical seizure at any time point?")
-	ever_sz_specific = logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'])
-	plot_forest_plot(ever_sz_specific, "ever_sz_specific", output_path)
+	model_name = "ever specific EEG factors (rpp, esz, ied) vs. ever seizures"
+	model = logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
-	# specific EEG factors (any_disc, lrda, esz) <-> ever having seizures
-	print("\nIs there an association between specific EEG factors (any_disc, lrda, esz) at any time point, and clinical seizure at any time point?")
-	ever_sz_specific2 = logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'])
-	plot_forest_plot(ever_sz_specific2, "ever_sz_specific2", output_path)
+	model_name = "ever specific EEG factors (any_disc, lrda, esz) vs. ever seizures"
+	model = logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
-	# hyperexcitability <-> late-onset seizures
-	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) at any time point, and late-onset clinical seizures?")
+	model_name = "ever hyperexcitability vs. late seizures"
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
-	late_sz_hyperexcitability = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'])
-	plot_forest_plot(late_sz_hyperexcitability, "late_sz_hyperexcitability", output_path)
+	model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
-	# specific EEG factors <-> late-onset seizures
-	print("\nIs there an association between specific EEG factors (any_disc, lrda, esz) at any time point, and late-onset clinical seizures?")
+	model_name = "ever specific EEG factors (any_disc, lrda, esz) vs. late seizures"
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
-	late_sz_specific = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'])
-	plot_forest_plot(late_sz_specific, "late_sz_specific", output_path)
+	model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
-	# hyperexcitability <-> tumor grade
-	print("\nIs there an association between EEG hyperexcitability (esz, ied, rpp) and WHO tumor grade?\n")
-	grade_hyperexcitability = ordinal_regression (patient_data, 'who', ['hyperexcitability', 'idh', 'age'])
-	plot_forest_plot(grade_hyperexcitability, "grade_hyperexcitability", output_path)
+	model_name = "ever hyperexcitability vs. grade"
+	model = ordinal_regression (patient_data, 'who', ['hyperexcitability', 'idh', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
-	# specific EEG factors <-> tumor grade
-	print("\nIs there an association between specific EEG factors (lpd, gpd, lrda, esz, ied) and WHO tumor grade?\n")
-	grade_specific = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'])
-	plot_forest_plot(grade_specific, "grade_specific", output_path)
+	model_name = "specific EEG factors (lpd, gpd, lrda, esz, ied) vs. grade"
+	model = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
 
 def find_hyperexcitability (patient_data, eeg_data):
 	patient_data = patient_data.copy()
@@ -109,19 +106,7 @@ def descriptive_statistics (patient_data):
 
 	percent_female = (len(patient_data[patient_data['sex'] == "Female"]) / len(patient_data) *100)
 	print("Percent Female:", percent_female, "\n")
-	
-	age_by_grade = patient_data.groupby('who')['age'].mean()
-	print("Patient age by WHO tumor grade:")
-	print(age_by_grade, "\n")
 
-	preop_sz_by_grade = patient_data.groupby('who')['preop_sz'].value_counts().unstack()
-	print("Pre-operative seizures by WHO tumor grade:")
-	print(preop_sz_by_grade, "\n")
-	
-	late_sz_by_grade = patient_data.groupby('who')['late_sz'].value_counts().unstack()
-	print("Late-onset seizures by WHO tumor grade:")
-	print(late_sz_by_grade, "\n")
-	
 	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts().unstack()
 	print("Pre-operative seizures by IDH mutation status:")
 	print(preop_sz_by_idh, "\n")

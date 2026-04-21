@@ -36,9 +36,8 @@ def plot_forest_plot(model_results, model_name, output_dir):
 	ax.grid(axis='x', alpha=0.3)
 
 	plt.tight_layout()
-	plt.savefig(os.path.join(output_dir, f"forest_{model_name}.png"), dpi=300)
+	plt.savefig(os.path.join(output_dir, f"{model_name}.png"), dpi=300)
 	plt.close()
-	print(f"Saved forest_{model_name}.png to {output_dir}")
 
 def plot_descriptive_stats (patient_data, output_dir):
 	output_dir = os.path.expanduser(output_dir)
@@ -47,6 +46,7 @@ def plot_descriptive_stats (patient_data, output_dir):
 	# preop sz by WHO grade
 	preop_sz_by_grade_data = patient_data.groupby('who')['preop_sz'].value_counts(normalize=True).unstack().fillna(0) * 100
 	preop_sz_by_grade_data = preop_sz_by_grade_data.reindex(columns=[True, False], fill_value=0)
+	print(preop_sz_by_grade_data, "\n")
 	preop_sz_by_grade_data.plot(kind = 'bar', stacked=True, ax = axes[0,0], color=['coral', 'steelblue'], edgecolor='black')
 	axes[0, 0].set_title("Pre-operative Seizures by WHO Grade")
 	axes[0, 0].set_xlabel("WHO Grade")
@@ -59,6 +59,7 @@ def plot_descriptive_stats (patient_data, output_dir):
 	# late sz by WHO grade
 	late_sz_by_grade_data = patient_data.groupby('who')['late_sz'].value_counts(normalize=True).unstack().fillna(0) * 100
 	late_sz_by_grade_data = late_sz_by_grade_data.reindex(columns=[True, False], fill_value=0)
+	print(late_sz_by_grade_data, "\n")
 	late_sz_by_grade_data.plot(kind = 'bar', stacked=True, ax = axes[0,1], color=['coral', 'steelblue'], edgecolor='black')
 	axes[0, 1].set_title("Late Seizures by WHO Grade")
 	axes[0, 1].set_xlabel("WHO Grade")
@@ -68,19 +69,30 @@ def plot_descriptive_stats (patient_data, output_dir):
 	late_sz_n = patient_data.dropna(subset=['late_sz']).groupby('who').size()
 	annotate_group_n (axes[0, 1], late_sz_by_grade_data, late_sz_n)
 
+	# age by grade
+	age_by_grade_data = patient_data.groupby('who')['age'].mean()
+	age_by_grade_data = age_by_grade_data.to_frame()
+	print(age_by_grade_data, "\n")
+	age_by_grade_data.plot(kind = 'bar', stacked=False, ax = axes[1,0], color='coral', edgecolor='black')
+	axes[1, 0].set_title("Age by WHO Grade")
+	axes[1,0].set_xlabel("WHO Grade")
+	axes[1,0].set_ylabel("Age (years)")
+	axes[1,0].tick_params(axis='x', rotation=0)
+	age_by_grade_n = patient_data.dropna(subset=['age']).groupby('who').size()
+	annotate_group_n (axes[1, 0], age_by_grade_data, age_by_grade_n)
+	axes[1,0].get_legend().remove()
+
 	plt.tight_layout()
 	plt.savefig(os.path.join(output_dir, "descriptive_stats.png"), dpi=300)
 	plt.close()
-	print("Saved descriptive_stats.png to Desktop")
 
 def annotate_group_n(ax, pct_df, n_by_group):
-	# pct_df index order matches bar order
+	n_by_group = n_by_group.reindex(pct_df.index, fill_value=0)
 	for i, group in enumerate(pct_df.index):
-		n_val = int(n_by_group.get(group, 0))
+		n_val = int(n_by_group.loc[group])
 		ax.text(
 			i, 2, f"n={n_val}",
 			ha="center", va="bottom",
 			fontsize=9, fontweight="bold", color="white",
 			bbox=dict(boxstyle="round,pad=0.2", facecolor="black", alpha=0.35, edgecolor="none")
 		)
-	# ax.set_ylim(0, max(110, float(pct_df.sum(axis=1).max()) + 10))
