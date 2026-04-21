@@ -96,8 +96,6 @@ def ordinal_regression (patients, outcome, predictor_cols, model_name, output_di
 		f.write("\n\n")
 		f.write(tabulate(or_table, headers='keys', tablefmt='github', floatfmt=".3f"))
 
-	# print(or_table.to_string(float_format=lambda x: f"{x:.3f}"))
-
 	results = {}
 	for var in predictor_cols:
 		if var in odds_ratios.index:

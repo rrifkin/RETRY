@@ -22,7 +22,6 @@ def retry_stats (data_file, dict_file):
 	# eeg_data.to_csv(os.path.join(output_path, "eeg_data.csv"), encoding="utf-8-sig", index=False, na_rep="NaN")
 
 	# Descriptive statistics
-	descriptive_statistics (patient_data)
 	plot_descriptive_stats (patient_data, output_path)
 
 	# Regression models
@@ -95,21 +94,6 @@ def find_ever_sz (patient_data):
 	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id'])
 
 	return (patient_data)
-
-def descriptive_statistics (patient_data):
-	# Descriptive statistics
-	num_included = len(patient_data)	
-	print("Number of patients included (n) =", num_included, "\n")
-
-	avg_patient_age = patient_data['age'].mean()
-	print("Average patient age =", avg_patient_age, "\n")
-
-	percent_female = (len(patient_data[patient_data['sex'] == "Female"]) / len(patient_data) *100)
-	print("Percent Female:", percent_female, "\n")
-
-	preop_sz_by_idh = patient_data.groupby('idh')['preop_sz'].value_counts().unstack()
-	print("Pre-operative seizures by IDH mutation status:")
-	print(preop_sz_by_idh, "\n")
 
 if __name__ == "__main__":
 	import sys
