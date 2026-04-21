@@ -109,10 +109,6 @@ def plot_descriptive_stats (patient_data, output_dir):
 		f.write(age_by_grade_data.to_string() + "\n\n")
 		f.write(preop_sz_by_idh.to_string() + "\n\n")
 
-
-
-
-
 def annotate_group_n(ax, pct_df, n_by_group):
 	n_by_group = n_by_group.reindex(pct_df.index, fill_value=0)
 	for i, group in enumerate(pct_df.index):
