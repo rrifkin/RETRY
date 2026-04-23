@@ -37,14 +37,19 @@ def redcap_parser (data_file, dict_file):
 	# remove excluded EEGs
 	eeg_data = eeg_data[eeg_data['eeg_inclusion'].str.strip() == 'INCLUDED'].copy()
 
-	# clean up data types in patient and EEG data
+	# clean up data types in patient data
 	patient_data["age"] = patient_data["age"].astype(float)
 	patient_data["study_id"] = patient_data["study_id"].astype(int)
 	patient_data['idh'] = patient_data['idh'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
+	patient_data['codel'] = patient_data['codel'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
+	patient_data['mgmt'] = patient_data['mgmt'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
 	patient_data['preop_sz'] = patient_data['preop_sz'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
 	patient_data['late_sz'] = patient_data['late_sz'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
-
+	patient_data['hemorrhage'] = patient_data['hemorrhage'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
+	patient_data['necrosis'] = patient_data['necrosis'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
 	patient_data['who'] = patient_data['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
+
+	# clean up data types in EEG data
 	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
 
 	return (patient_data, eeg_data)

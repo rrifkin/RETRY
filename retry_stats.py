@@ -18,8 +18,8 @@ def retry_stats (data_file, dict_file):
 	patient_data = find_ever_sz (patient_data)
 
 	# Output individual dataframes (if needed for debugging)
-	# patient_data.to_csv(os.path.join(output_path, "patient_data.csv"),encoding="utf-8-sig", index=False, na_rep="NaN")
-	# eeg_data.to_csv(os.path.join(output_path, "eeg_data.csv"), encoding="utf-8-sig", index=False, na_rep="NaN")
+	patient_data.to_csv(os.path.join(output_path, "patient_data.csv"),encoding="utf-8-sig", index=False, na_rep="NaN")
+	eeg_data.to_csv(os.path.join(output_path, "eeg_data.csv"), encoding="utf-8-sig", index=False, na_rep="NaN")
 
 	# Descriptive statistics
 	plot_descriptive_stats (patient_data, output_path)
@@ -37,6 +37,14 @@ def retry_stats (data_file, dict_file):
 	model = logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
+	model_name = "ever specific EEG factors (any_disc, lrda) vs. ever seizures"
+	model = logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
+	model_name = "ever specific EEG factors (pd, ied, lrda) vs. ever seizures"
+	model = logistic_regression (patient_data, 'ever_sz', ['pd', 'ied', 'lrda', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
 	model_name = "ever hyperexcitability vs. late seizures"
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
@@ -49,12 +57,26 @@ def retry_stats (data_file, dict_file):
 	model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
+	model_name = "ever specific EEG factors (any_disc, lrda) vs. late seizures"
+	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
+	patients_wo_baseline_sz = patient_data[pts].copy()
+	model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
 	model_name = "ever hyperexcitability vs. grade"
 	model = ordinal_regression (patient_data, 'who', ['hyperexcitability', 'idh', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
 	model_name = "specific EEG factors (lpd, gpd, lrda, esz, ied) vs. grade"
 	model = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
+	model_name = "hemorrhage, necrosis vs. ever_sz"
+	model = ordinal_regression (patient_data, 'ever_sz', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
+	model_name = "hemorrhage, necrosis vs. pd"
+	model = ordinal_regression (patient_data, 'pd', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
 def find_hyperexcitability (patient_data, eeg_data):
