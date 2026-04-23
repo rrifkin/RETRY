@@ -88,3 +88,41 @@ def replace_with_dict_checkboxes(raw_data, checkbox_dict):
 			raw_data[column_name] = output
 
 	return (raw_data)
+
+def find_hyperexcitability (patient_data, eeg_data):
+	patient_data = patient_data.copy()
+	eeg_data = eeg_data.copy()
+
+	gpd = eeg_data.loc[eeg_data['gpd_yn'] == "1", 'study_id'].drop_duplicates()
+	lpd = eeg_data.loc[eeg_data['lpd_yn'] == "1", 'study_id'].drop_duplicates()
+	bipd = eeg_data.loc[eeg_data['bipd_yn'] == "1", 'study_id'].drop_duplicates()
+	lrda = eeg_data.loc[eeg_data['lrda_yn'] == "1", 'study_id'].drop_duplicates()
+	esz = eeg_data.loc[eeg_data['sz_yn'] == "1", 'study_id'].drop_duplicates()
+	ied = eeg_data.loc[eeg_data['epi_disch_yn'] == "1", 'study_id'].drop_duplicates()
+
+	new_cols = pd.DataFrame({
+		'gpd': patient_data['study_id'].isin(gpd).astype("boolean"),
+		'lpd': patient_data['study_id'].isin(lpd).astype("boolean"),
+		'bipd': patient_data['study_id'].isin(bipd).astype("boolean"),
+		'lrda': patient_data['study_id'].isin(lrda).astype("boolean"),
+		'esz': patient_data['study_id'].isin(esz).astype("boolean"),
+		'ied': patient_data['study_id'].isin(ied).astype("boolean"),
+		'rpp': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda], ignore_index=True)).astype("boolean"),
+		'any_disc': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, ied], ignore_index=True)).astype("boolean"),
+		'pd': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd], ignore_index=True)).astype("boolean"),
+		'hyperexcitability': patient_data['study_id'].isin(pd.concat([gpd, lpd, bipd, lrda, esz, ied], ignore_index=True)).astype("boolean"),
+	}, index=patient_data.index)
+
+	patient_data = pd.concat([patient_data, new_cols], axis=1)
+
+	return (patient_data)
+
+# determines if patient ever had a clinical seizure
+def find_ever_sz (patient_data):
+	patient_data = patient_data.copy()
+
+	ever_sz = patient_data.loc[(patient_data['preop_sz'] == True) | (patient_data['late_sz'] == True)]
+
+	patient_data['ever_sz'] = patient_data['study_id'].isin(ever_sz['study_id'])
+
+	return (patient_data)

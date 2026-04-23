@@ -32,7 +32,7 @@ def plot_forest_plot(model_results, model_name, output_dir):
 	ax.set_yticks(y_pos)
 	ax.set_yticklabels(variables)
 	ax.set_xlabel("Odds Ratio (95% CI)")
-	ax.set_title(f"Forest Plot: {model_name}")
+	ax.set_title(model_name)
 	ax.grid(axis='x', alpha=0.3)
 
 	plt.tight_layout()
