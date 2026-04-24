@@ -46,6 +46,7 @@ def plot_descriptive_stats (patient_data, output_dir):
 	# Basic descriptive statistics
 	num_included = len(patient_data)	
 	avg_patient_age = patient_data['age'].mean()
+	age_range = (patient_data['age'].min(), patient_data['age'].max())
 	percent_female = (len(patient_data[patient_data['sex'] == "Female"]) / len(patient_data) *100)
 
 	# preop sz by WHO grade
@@ -103,6 +104,7 @@ def plot_descriptive_stats (patient_data, output_dir):
 	with open(os.path.join(output_dir, "descriptive_stats.txt"), "w") as f:
 		f.write("Number of patients included (n) = " + str(num_included) + "\n\n")
 		f.write("Average patient age = " + str(avg_patient_age) + "\n\n")
+		f.write("Patient age range = " + str(age_range[0]) + " , " + str(age_range[1]) + "\n\n")
 		f.write("Percent Female: " + str(percent_female) + "\n\n")
 		f.write(preop_sz_by_grade_data.to_string() + "\n\n")
 		f.write(late_sz_by_grade_data.to_string() + "\n\n")

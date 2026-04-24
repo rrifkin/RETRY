@@ -73,7 +73,6 @@ def ordinal_regression (patients, outcome, predictor_cols, model_name, output_di
 
 	ord_model = OrderedModel(y, x, distr='logit')
 	ord_res = ord_model.fit(method='bfgs', disp=False)
-	# print(ord_res.summary())
 
 	# Odds ratios for predictors only (exclude threshold/cutpoint params like "1/2")
 	params = ord_res.params

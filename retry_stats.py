@@ -24,16 +24,18 @@ def retry_stats (data_file, dict_file):
 	plot_descriptive_stats (patient_data, output_path)
 
 	# Regression models
-	model_name = "ever hyperexcitability (esz, ied, rpp) vs. ever seizures"
+	model_name = "location vs. ever seizures"
+	model = logistic_regression (patient_data, 'ever_sz', ['loc_Frontal', 'loc_Parietal','loc_Occipital','loc_Temporal','loc_Subcortical','loc_Insula','loc_Infratentorial','idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
+	model_name = "complications vs. ever seizures"
+	complication_cols = [col for col in patient_data.columns if col.startswith('complications_')]
+	complication_cols = [col for col in complication_cols if patient_data[col].nunique() > 1]
+	model = logistic_regression (patient_data, 'ever_sz', complication_cols + ['idh', 'who', 'age'], model_name, output_path)
+	plot_forest_plot(model, model_name, output_path)
+
+	model_name = "ever hyperexcitability vs. ever seizures"
 	model = logistic_regression (patient_data, 'ever_sz', ['hyperexcitability', 'idh', 'who', 'age'], model_name, output_path)
-	plot_forest_plot(model, model_name, output_path)
-
-	model_name = "ever specific EEG factors (rpp, esz, ied) vs. ever seizures"
-	model = logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'], model_name, output_path)
-	plot_forest_plot(model, model_name, output_path)
-
-	model_name = "ever specific EEG factors (any_disc, lrda, esz) vs. ever seizures"
-	model = logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
 	model_name = "ever specific EEG factors (any_disc, lrda) vs. ever seizures"
@@ -48,12 +50,6 @@ def retry_stats (data_file, dict_file):
 	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
 	patients_wo_baseline_sz = patient_data[pts].copy()
 	model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['hyperexcitability', 'idh', 'who', 'age'], model_name, output_path)
-	plot_forest_plot(model, model_name, output_path)
-
-	model_name = "ever specific EEG factors (any_disc, lrda, esz) vs. late seizures"
-	pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
-	patients_wo_baseline_sz = patient_data[pts].copy()
-	model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
 	model_name = "ever specific EEG factors (any_disc, lrda) vs. late seizures"
@@ -77,6 +73,29 @@ def retry_stats (data_file, dict_file):
 	model_name = "hemorrhage, necrosis vs. pd"
 	model = ordinal_regression (patient_data, 'pd', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
+
+	# model_name = "mutations vs. ever seizures"
+	# mutation_cols = [col for col in patient_data.columns if col.startswith('mutations_')]
+	# mutation_cols = [col for col in mutation_cols if patient_data[col].nunique() > 1]
+	# mutation_df = patient_data[mutation_cols]
+	# mutation_df = mutation_df.loc[:, ~mutation_df.T.duplicated()]
+	# mutation_cols = mutation_df.columns.tolist()
+	# model = logistic_regression (patient_data, 'ever_sz', mutation_cols + ['idh', 'who', 'age'], model_name, output_path)
+	# plot_forest_plot(model, model_name, output_path)
+
+	# model_name = "ever specific EEG factors (rpp, esz, ied) vs. ever seizures"
+	# model = logistic_regression (patient_data, 'ever_sz', ['rpp', 'esz', 'ied', 'idh', 'who', 'age'], model_name, output_path)
+	# plot_forest_plot(model, model_name, output_path)
+
+	# model_name = "ever specific EEG factors (any_disc, lrda, esz) vs. ever seizures"
+	# model = logistic_regression (patient_data, 'ever_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
+	# plot_forest_plot(model, model_name, output_path)
+
+	# model_name = "ever specific EEG factors (any_disc, lrda, esz) vs. late seizures"
+	# pts = (patient_data['preop_sz'] == False) | patient_data['preop_sz'].isna()
+	# patients_wo_baseline_sz = patient_data[pts].copy()
+	# model = logistic_regression (patients_wo_baseline_sz, 'late_sz', ['any_disc', 'lrda', 'esz', 'idh', 'who', 'age'], model_name, output_path)
+	# plot_forest_plot(model, model_name, output_path)
 
 if __name__ == "__main__":
 	import sys

@@ -23,6 +23,9 @@ def redcap_parser (data_file, dict_file):
 	patient_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] != 'eeg_data'].copy()
 	patient_data = patient_data.loc[:,'study_id':'glioma_complete'].copy()
 
+	# exclude patients with WHO grade 1 glioma
+	patient_data = patient_data[patient_data['who'] != '1'].copy()
+
 	# create a dataframe of just the EEG data
 	eeg_data = cleaned_data[cleaned_data['redcap_repeat_instrument'] == 'eeg_data'].copy()
 	eeg_data_1 = eeg_data.loc[:,'study_id':'redcap_repeat_instance'].copy()
@@ -76,16 +79,24 @@ def replace_with_dict(raw_data, multchoice_dict):
 def replace_with_dict_checkboxes(raw_data, checkbox_dict):
 	raw_data = raw_data.copy()
 	for index, row in checkbox_dict.iterrows():
-		column_name = row['Variable / Field Name']
+		base_name = row['Variable / Field Name']
 		replacement_dict = row['parsed_dict']
 
-		if column_name in raw_data.columns:
-			output = []
-			for i, this_item in raw_data[column_name].items():
-				this_string =str(this_item)
-				result = ",".join(replacement_dict.get(item.strip(), item.strip()) for item in this_string.split(","))
-				output.append(result)
-			raw_data[column_name] = output
+		for code, label in replacement_dict.items():
+			col_name = f"{base_name}___{code}"
+			if col_name in raw_data.columns:
+				raw_data.rename(columns={col_name: f"{base_name}_{label}"}, inplace=True)
+
+		# if column_name in raw_data.columns:
+		# 	result = replacement_dict.get(column_name)
+		# 	raw_data.rename(columns={column_name:result}, inplace=True)
+
+			# output = []
+			# for i, this_item in raw_data[column_name].items():
+			# 	this_string =str(this_item)
+			# 	result = ",".join(replacement_dict.get(item.strip(), item.strip()) for item in this_string.split(","))
+			# 	output.append(result)
+			# raw_data[column_name] = output
 
 	return (raw_data)
 
