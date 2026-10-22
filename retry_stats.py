@@ -67,11 +67,11 @@ def retry_stats (data_file, dict_file):
 	plot_forest_plot(model, model_name, output_path)
 
 	model_name = "hemorrhage, necrosis vs. ever_sz"
-	model = ordinal_regression (patient_data, 'ever_sz', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
+	model = logistic_regression (patient_data, 'ever_sz', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
 	model_name = "hemorrhage, necrosis vs. pd"
-	model = ordinal_regression (patient_data, 'pd', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
+	model = logistic_regression (patient_data, 'pd', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
 	# model_name = "mutations vs. ever seizures"
