@@ -8,6 +8,13 @@ def plot_forest_plot(model_results, model_name, output_dir):
 	model_name: string for the plot title
 	output_dir: path to save the plot
 	"""
+	row_height = 0.45  # inches per variable
+	left_margin = 3.0
+	right_margin = 0.5
+	top_margin = 0.5
+	bottom_margin = 0.5
+	fig_width = 8
+
 	output_dir = os.path.expanduser(output_dir)
 
 	variables = list(model_results.keys())
@@ -21,7 +28,18 @@ def plot_forest_plot(model_results, model_name, output_dir):
 		[ci_uppers[i] - coefs[i] for i in range(len(coefs))]
 	]
 
-	fig, ax = plt.subplots(figsize=(10, 0.5 * len(variables) + 1))
+	plot_height = len(variables) * row_height
+	fig_height = plot_height + top_margin + bottom_margin
+
+
+	fig = plt.figure(figsize=(fig_width, fig_height))
+
+	ax = fig.add_axes([
+		left_margin / fig_width,
+		bottom_margin / fig_height,
+		(fig_width - left_margin - right_margin) / fig_width,
+		plot_height / fig_height
+		])
 
 	y_pos = np.arange(len(variables))
 	ax.errorbar(coefs, y_pos, xerr=errors, fmt='o', markersize=8, capsize=5, capthick=2, color='steelblue')
@@ -35,7 +53,7 @@ def plot_forest_plot(model_results, model_name, output_dir):
 	ax.set_title(model_name)
 	ax.grid(axis='x', alpha=0.3)
 
-	plt.tight_layout()
+	#plt.tight_layout()
 	plt.savefig(os.path.join(output_dir, f"{model_name}.png"), dpi=300)
 	plt.close()
 
