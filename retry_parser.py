@@ -52,6 +52,14 @@ def redcap_parser (data_file, dict_file):
 	patient_data['necrosis'] = patient_data['necrosis'].map({'Yes': True, 'No': False, '': pd.NA, np.nan: pd.NA}).astype("boolean")
 	patient_data['who'] = patient_data['who'].map({'1': 1, '2': 2, '3': 3, '4': 4, 'Indeterminate': np.nan})
 
+	# prevent "double True" seizure-onset time; it's very confusing but this variable should refer to the FIRST seizure time
+	patient_data.loc[patient_data['preop_sz'] == True, 'late_sz'] = False 
+
+	# assume that seizures not filled in are false (not found in chart)
+	patient_data.loc[patient_data['preop_sz'].isna(), 'preop_sz'] = False
+	patient_data.loc[patient_data['late_sz'].isna(), 'late_sz'] = False
+
+
 	# clean up data types in EEG data
 	eeg_data["study_id"] = eeg_data["study_id"].astype(int)
 
