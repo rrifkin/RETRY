@@ -115,6 +115,14 @@ def plot_descriptive_stats (patient_data, output_dir):
 	preop_sz_n = patient_data.dropna(subset=['preop_sz']).groupby('idh').size()
 	annotate_group_n (axes[1, 1], preop_sz_by_idh, preop_sz_n)
 
+	# periodic discharges by WHO grade
+	pd_by_grade_data = patient_data.groupby('who')['pd'].value_counts(normalize=True).unstack().fillna(0) * 100
+	pd_by_grade_data = pd_by_grade_data.reindex(columns=[True, False], fill_value=0)
+
+	# interictal epileptiform discharges by WHO grade
+	ied_by_grade_data = patient_data.groupby('who')['ied'].value_counts(normalize=True).unstack().fillna(0) * 100
+	ied_by_grade_data = ied_by_grade_data.reindex(columns=[True, False], fill_value=0)
+
 	plt.tight_layout()
 	plt.savefig(os.path.join(output_dir, "descriptive_stats.png"), dpi=300)
 	plt.close()
@@ -128,6 +136,9 @@ def plot_descriptive_stats (patient_data, output_dir):
 		f.write(late_sz_by_grade_data.to_string() + "\n\n")
 		f.write(age_by_grade_data.to_string() + "\n\n")
 		f.write(preop_sz_by_idh.to_string() + "\n\n")
+		f.write(pd_by_grade_data.to_string() + "\n\n")
+		f.write(ied_by_grade_data.to_string() + "\n\n")
+
 
 def annotate_group_n(ax, pct_df, n_by_group):
 	n_by_group = n_by_group.reindex(pct_df.index, fill_value=0)
