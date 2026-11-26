@@ -4,6 +4,7 @@ import pandas as pd
 from retry_parser import redcap_parser, find_hyperexcitability, find_ever_sz
 from retry_models import logistic_regression, ordinal_regression
 from retry_plots import plot_descriptive_stats, plot_forest_plot
+from retry_descriptives import retry_descriptives
 
 def retry_stats (data_file, dict_file):
 
@@ -22,31 +23,32 @@ def retry_stats (data_file, dict_file):
 
 	# Descriptive statistics
 	plot_descriptive_stats (patient_data, output_path)
+	retry_descriptives (patient_data, eeg_data, output_path)
 
 	# Regression models
-	model_name = "location vs. ever seizures"
+	model_name = "Location vs. Clinical Seizure"
 	model = logistic_regression (patient_data, 'ever_sz', ['loc_Frontal', 'loc_Parietal','loc_Occipital','loc_Temporal','loc_Subcortical','loc_Insula','loc_Infratentorial','idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
-	model_name = "complications vs. ever seizures"
+	model_name = "Structural Complication vs. Clinical Seizure"
 	complication_cols = [col for col in patient_data.columns if col.startswith('complications_')]
 	complication_cols = [col for col in complication_cols if patient_data[col].nunique() > 1]
 	model = logistic_regression (patient_data, 'ever_sz', complication_cols + ['idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
-	model_name = "ever specific EEG factors (pd, ied, lrda) vs. ever seizures"
+	model_name = "Interictal EEG Finding vs. Clinical Seizure"
 	model = logistic_regression (patient_data, 'ever_sz', ['pd', 'ied', 'lrda', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
-	model_name = "specific EEG factors (lpd, gpd, lrda, esz, ied) vs. grade"
+	model_name = "EEG Findings vs. WHO Grade"
 	model = ordinal_regression (patient_data, 'who', ['lpd', 'gpd', 'lrda', 'esz', 'ied', 'idh', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
-	model_name = "hemorrhage, necrosis vs. ever_sz"
+	model_name = "Pathology vs. Clinical Seizure"
 	model = logistic_regression (patient_data, 'ever_sz', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
-	model_name = "hemorrhage, necrosis vs. pd"
+	model_name = "Pathology vs. Clinical Seizure"
 	model = logistic_regression (patient_data, 'pd', ['hemorrhage', 'necrosis', 'idh', 'who', 'age'], model_name, output_path)
 	plot_forest_plot(model, model_name, output_path)
 
