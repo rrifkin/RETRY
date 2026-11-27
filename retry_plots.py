@@ -59,7 +59,7 @@ def plot_forest_plot(model_results, model_name, output_dir):
 
 def plot_descriptive_stats (patient_data, output_dir):
 	output_dir = os.path.expanduser(output_dir)
-	fig, axes = plt.subplots(2,2,figsize=(12,10))
+	fig, axes = plt.subplots(3,2,figsize=(12,10))
 
 	# Basic descriptive statistics
 	num_included = len(patient_data)	
@@ -118,10 +118,26 @@ def plot_descriptive_stats (patient_data, output_dir):
 	# periodic discharges by WHO grade
 	pd_by_grade_data = patient_data.groupby('who')['pd'].value_counts(normalize=True).unstack().fillna(0) * 100
 	pd_by_grade_data = pd_by_grade_data.reindex(columns=[True, False], fill_value=0)
+	pd_by_grade_data.plot(kind = 'bar', stacked=True, ax = axes[2,0], color=['coral', 'steelblue'], edgecolor='black')
+	axes[2, 0].set_title("Periodic Discharges by WHO grade")
+	axes[2, 0].set_xlabel("WHO grade")
+	axes[2, 0].set_ylabel("Percentage")
+	axes[2, 0].legend(title="Periodic Discharges", labels=["Yes", "No"], loc="upper right")
+	axes[2, 0].tick_params(axis='x', rotation=0)
+	pd_by_grade_n = patient_data.dropna(subset=['pd']).groupby('who').size()
+	annotate_group_n (axes[2, 0], pd_by_grade_data, pd_by_grade_n)
 
 	# interictal epileptiform discharges by WHO grade
 	ied_by_grade_data = patient_data.groupby('who')['ied'].value_counts(normalize=True).unstack().fillna(0) * 100
 	ied_by_grade_data = ied_by_grade_data.reindex(columns=[True, False], fill_value=0)
+	ied_by_grade_data.plot(kind = 'bar', stacked=True, ax = axes[2,1], color=['coral', 'steelblue'], edgecolor='black')
+	axes[2, 1].set_title("Interictal Epileptiform Discharges by WHO grade")
+	axes[2, 1].set_xlabel("WHO grade")
+	axes[2, 1].set_ylabel("Percentage")
+	axes[2, 1].legend(title="Interictal Epileptiform Discharges", labels=["Yes", "No"], loc="upper right")
+	axes[2, 1].tick_params(axis='x', rotation=0)
+	ied_by_grade_n = patient_data.dropna(subset=['ied']).groupby('who').size()
+	annotate_group_n (axes[2, 1], ied_by_grade_data, ied_by_grade_n)
 
 	plt.tight_layout()
 	plt.savefig(os.path.join(output_dir, "descriptive_stats.png"), dpi=300)
